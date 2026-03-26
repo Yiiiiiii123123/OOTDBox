@@ -1,0 +1,7 @@
+{
+  "src": [
+    "pages/HomePage",
+    "pages/ClosetPage",
+    "pages/RecommendPage"
+  ]
+}
