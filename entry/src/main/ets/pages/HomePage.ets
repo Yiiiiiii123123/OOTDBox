@@ -1,23 +1,41 @@
+import { router } from '@kit.ArkUI'
+
 @Entry
 @Component
-struct Index {
-  @State message: string = 'Hello World';
+struct HomePage {
 
   build() {
-    RelativeContainer() {
-      Text(this.message)
-        .id('HelloWorld')
-        .fontSize($r('app.float.page_text_font_size'))
+    Column() {
+      // 标题
+      Text('智能衣橱')
+        .fontSize(28)
         .fontWeight(FontWeight.Bold)
-        .alignRules({
-          center: { anchor: '__container__', align: VerticalAlign.Center },
-          middle: { anchor: '__container__', align: HorizontalAlign.Center }
-        })
+        .margin({ bottom: 40 })
+
+      // 按钮1：跳转衣橱页面
+      Button('进入衣橱')
+        .width('80%')
+        .height(50)
+        .margin({ bottom: 20 })
         .onClick(() => {
-          this.message = 'Welcome';
+          router.pushUrl({
+            url: 'pages/ClosetPage'
+          })
+        })
+
+      // 按钮2：跳转推荐页面
+      Button('穿搭推荐')
+        .width('80%')
+        .height(50)
+        .onClick(() => {
+          router.pushUrl({
+            url: 'pages/RecommendPage'
+          })
         })
     }
-    .height('100%')
     .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
   }
 }
