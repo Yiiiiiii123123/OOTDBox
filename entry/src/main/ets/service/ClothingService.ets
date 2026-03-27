@@ -1,4 +1,4 @@
-import { ClothingInput } from '../model/Clothing'
+import { ClothingDraft, ClothingInput } from '../model/Clothing'
 import { ClothingRepo } from '../repository/ClothingRepo'
 import { SegmentationService } from './SegmentationService'
 
@@ -7,37 +7,19 @@ export class ClothingService {
   private repo: ClothingRepo = new ClothingRepo()
   private segmentationService: SegmentationService = new SegmentationService()
 
-  async addClothing(uri: string): Promise<void> {
-    try {
+  async analyzeClothing(uri: string): Promise<ClothingDraft> {
+    const cutoutUri = await this.segmentationService.segmentClothing(uri)
 
-      console.log('开始处理衣物:', uri)
-
-      // ✅ 1. 抠图（假AI）
-      const cutoutUri = await this.segmentationService.segmentClothing(uri)
-
-      // ✅ 2. 假AI分类
-      const category = this.fakeCategory()
-
-      // ✅ 3. 假AI颜色识别
-      const color = this.fakeColor()
-
-      console.log('AI识别结果:', category, color)
-
-      // ✅ 4. 入库
-      const item: ClothingInput = {
-        category: category,
-        color: color,
-        imageUri: uri,
-        cutoutUri: cutoutUri
-      }
-
-      await this.repo.insert(item)
-
-      console.log('衣物入库完成')
-
-    } catch (e) {
-      console.error('添加衣物失败', e)
+    return {
+      imageUri: uri,
+      cutoutUri: cutoutUri,
+      category: this.fakeCategory(),
+      color: this.fakeColor()
     }
+  }
+
+  async saveClothing(draft: ClothingInput) {
+    await this.repo.insert(draft)
   }
 
   async deleteClothing(id: number): Promise<void> {

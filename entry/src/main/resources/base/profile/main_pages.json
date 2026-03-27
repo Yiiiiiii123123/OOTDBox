@@ -2,6 +2,7 @@
   "src": [
     "pages/HomePage",
     "pages/ClosetPage",
-    "pages/RecommendPage"
+    "pages/RecommendPage",
+    "pages/ConfirmPage"
   ]
 }

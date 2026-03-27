@@ -37,3 +37,10 @@ export interface ClothingInput {
   imageUri: string
   cutoutUri: string
 }
+
+export interface ClothingDraft {
+  imageUri: string
+  category: string
+  color: string
+  cutoutUri: string
+}

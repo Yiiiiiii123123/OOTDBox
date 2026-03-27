@@ -3,6 +3,7 @@ import { ClothingRepo } from '../repository/ClothingRepo'
 import { ClothingService } from '../service/ClothingService'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
+import router from '@ohos.router' // ❗新增
 
 @Entry
 @Component
@@ -17,11 +18,14 @@ struct ClosetPage {
     this.loadData()
   }
 
+  onPageShow() {
+    this.loadData() // 返回刷新
+  }
+
   async loadData() {
     try {
       const list = await this.repo.getAll()
       this.clothingList = list ?? []
-      console.log('加载完成:', this.clothingList.length)
     } catch (e) {
       console.error('加载失败', e)
     }
@@ -49,7 +53,6 @@ struct ClosetPage {
           ListItem() {
             Row() {
 
-              // 图片（直接使用 URI）
               Image(item.imageUri ?? '')
                 .width(80)
                 .height(80)
@@ -71,7 +74,6 @@ struct ClosetPage {
                     await this.handleDelete(item.id)
                   }
                 })
-
             }
             .padding(10)
           }
@@ -88,7 +90,7 @@ struct ClosetPage {
   }
 
   // ======================
-  // UI层：只负责选图
+  // 关键修改在这里 👇
   // ======================
   async selectImage() {
     try {
@@ -102,18 +104,21 @@ struct ClosetPage {
       const result: picker.PhotoSelectResult = await photoPicker.select(options)
 
       if (!result || !result.photoUris || result.photoUris.length === 0) {
-        console.log('未选择图片')
         return
       }
 
       const uri: string = result.photoUris[0]
-      console.log('选中图片:', uri)
 
-      // ❗交给 Service
-      await this.service.addClothing(uri)
+      // ❗1. 调用“分析”，不入库
+      const draft = await this.service.analyzeClothing(uri)
 
-      // ❗统一刷新
-      await this.loadData()
+      console.log('AI结果:', draft)
+
+      // ❗2. 跳转确认页面
+      router.pushUrl({
+        url: 'pages/ConfirmPage',   // ⚠️ 确保路径正确
+        params: draft
+      })
 
     } catch (error) {
       const err: BusinessError = error as BusinessError
@@ -122,11 +127,7 @@ struct ClosetPage {
   }
 
   async handleDelete(id: number) {
-    try {
-      await this.service.deleteClothing(id)
-      await this.loadData()
-    } catch (e) {
-      console.error('删除失败', e)
-    }
+    await this.service.deleteClothing(id)
+    await this.loadData()
   }
 }
