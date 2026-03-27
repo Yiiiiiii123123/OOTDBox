@@ -3,6 +3,7 @@
     "pages/HomePage",
     "pages/ClosetPage",
     "pages/RecommendPage",
-    "pages/ConfirmPage"
+    "pages/ConfirmPage",
+    "pages/CitySelectPage"
   ]
 }
