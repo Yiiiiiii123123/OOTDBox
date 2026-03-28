@@ -9,11 +9,12 @@ struct HomePage {
   @State weatherText: string = '加载中...'
   @State city: string = '厦门'
   @State cityCode: string = '350200'
+  @State selectedTab: number = 0  // 0:首页 1:衣橱 2:搭配 3:我的
 
   @StorageLink('selectedCity') selectedCity: City | null = null
 
   private weatherService: WeatherService = new WeatherService()
-  private isUpdatingWeather: boolean = false  // 防止重复请求
+  private isUpdatingWeather: boolean = false
 
   aboutToAppear() {
     AppStorage.setOrCreate('selectedCity', null)
@@ -25,9 +26,8 @@ struct HomePage {
       this.city = this.selectedCity.city
       this.cityCode = this.selectedCity.adcode
       this.loadWeather()
-      this.selectedCity = null  // 清空
+      this.selectedCity = null
     } else {
-      // 首次加载或返回时，确保天气数据正确
       if (this.cityCode === '350200' && this.weatherText === '加载中...') {
         this.loadWeather()
       }
@@ -35,48 +35,35 @@ struct HomePage {
   }
 
   async loadWeather() {
-    // 防止重复请求
     if (this.isUpdatingWeather) {
       console.info('[防抖] 已有请求在进行中，跳过')
       return
     }
 
     this.isUpdatingWeather = true
+    const requestCityCode = this.cityCode
 
-    const requestCityCode = this.cityCode  // 记录本次请求的城市代码
-    const requestStartTime = Date.now()
-    console.info(`[请求开始] 城市: ${this.city}, 代码: ${requestCityCode}, 时间: ${requestStartTime}`)
-
-    // 先显示加载状态
     this.weatherText = '加载中...'
 
     try {
       const result = await this.weatherService.getWeather(this.cityCode)
 
-      // 检查是否是最新的请求
       if (requestCityCode !== this.cityCode) {
-        console.warn(`[丢弃旧数据] 请求时城市: ${requestCityCode}, 当前城市: ${this.cityCode}, 忽略此结果`)
-        return  // 丢弃过时的结果
+        console.warn(`[丢弃旧数据] 请求时城市: ${requestCityCode}, 当前城市: ${this.cityCode}`)
+        return
       }
 
-      const requestEndTime = Date.now()
-      console.info(`[请求完成] 耗时: ${requestEndTime - requestStartTime}ms, 结果: ${result ? '成功' : '失败'}`)
-
       if (result) {
-        console.info(`[更新UI] 城市: ${result.city}, 天气: ${result.weather}, 温度: ${result.temperature}°C`)
         this.city = result.city
         this.temperature = result.temperature
-        this.weatherText = `${this.city} 当前天气：${result.weather}，温度：${this.temperature}℃`
+        this.weatherText = `${result.weather}`
       } else {
-        console.error(`[请求失败] 城市代码: ${requestCityCode}`)
-        // 失败时不更新 city 和 weatherText，保留之前的数据
-        // 但可以显示错误提示
-        this.weatherText = `获取${this.city}天气失败，请稍后重试`
+        this.weatherText = `获取失败`
       }
     } catch (err) {
       console.error(`[请求异常] ${JSON.stringify(err)}`)
       if (requestCityCode === this.cityCode) {
-        this.weatherText = `获取${this.city}天气失败，请稍后重试`
+        this.weatherText = `获取失败`
       }
     } finally {
       this.isUpdatingWeather = false
@@ -87,42 +74,161 @@ struct HomePage {
     router.pushUrl({ url: 'pages/CitySelectPage' })
   }
 
+  // 底部Tab切换
+  onTabChange(index: number) {
+    this.selectedTab = index
+    switch (index) {
+      case 0:
+        // 已在首页，无需跳转
+        break
+      case 1:
+        router.pushUrl({ url: 'pages/ClosetPage' })
+        break
+      case 2:
+        router.pushUrl({ url: 'pages/RecommendPage' })
+        break
+      case 3:
+        router.pushUrl({ url: 'pages/PersonalPage' })
+        break
+    }
+  }
+
   build() {
-    Column() {
-      Text('首页')
-        .fontSize(26)
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 30, bottom: 20 })
+    Stack() {
+      // 背景图片
+      Image($r('app.media.background1'))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
 
-      Button(`当前城市: ${this.city}`)
-        .width('80%')
-        .height(45)
-        .margin({ bottom: 20 })
-        .onClick(() => {
-          this.onSelectCity()
-        })
+      // 主要内容
+      Column() {
+        // 顶部区域：图标 + 城市名 + 切换按钮
+        Row() {
+          // 图标
+          Image($r('app.media.cover'))
+            .width(32)
+            .height(32)
+            .margin({ right: 8 })
 
-      Text(this.weatherText)
-        .fontSize(18)
-        .margin({ bottom: 30 })
+          // 城市名
+          Text(this.city)
+            .fontSize(20)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#FFFFFF')
 
-      Button('进入衣橱')
-        .width('80%')
-        .height(45)
-        .margin({ bottom: 20 })
-        .onClick(() => {
-          router.pushUrl({ url: 'pages/ClosetPage' })
-        })
+          // 切换城市按钮
+          Button('切换')
+            .width(60)
+            .height(32)
+            .fontSize(14)
+            .backgroundColor('rgba(255, 255, 255, 0.3)')
+            .fontColor('#FFFFFF')
+            .borderRadius(16)
+            .margin({ left: 12 })
+            .onClick(() => {
+              this.onSelectCity()
+            })
+        }
+        .width('100%')
+        .padding({ left: 20, right: 20, top: 40 })
+        .justifyContent(FlexAlign.Start)
 
-      Button('查看推荐')
-        .width('80%')
-        .height(45)
-        .onClick(() => {
-          router.pushUrl({ url: 'pages/RecommendPage' })
-        })
+        // 温度显示
+        Text(`${this.temperature}°`)
+          .fontSize(72)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+          .margin({ top: 40 })
+          .shadow({ radius: 10, color: '#00000040' })
+
+        // 天气描述
+        Text(this.weatherText)
+          .fontSize(24)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
+          .margin({ top: 8 })
+          .shadow({ radius: 8, color: '#00000040' })
+
+        // 两个圆角矩形按钮
+        Row() {
+          // 进入衣橱按钮
+          Button('进入衣橱')
+            .width('45%')
+            .height(50)
+            .fontSize(18)
+            .fontWeight(FontWeight.Medium)
+            .backgroundColor('rgba(255, 255, 255, 0.5)')
+            .fontColor('#FFFFFF')
+            .borderRadius(25)
+            .onClick(() => {
+              router.pushUrl({ url: 'pages/ClosetPage' })
+            })
+
+          // 查看推荐按钮
+          Button('查看推荐')
+            .width('45%')
+            .height(50)
+            .fontSize(18)
+            .fontWeight(FontWeight.Medium)
+            .backgroundColor('rgba(255, 255, 255, 0.5)')
+            .fontColor('#FFFFFF')
+            .borderRadius(25)
+            .onClick(() => {
+              router.pushUrl({ url: 'pages/RecommendPage' })
+            })
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.SpaceEvenly)
+        .margin({ top: 50, bottom: 30 })
+
+        Blank()
+
+        // 底部Tab栏
+        Row() {
+          // 首页
+          this.buildTabItem('首页', 0, 'icon_home')
+
+          // 衣橱
+          this.buildTabItem('衣橱', 1, 'icon_closet')
+
+          // 搭配
+          this.buildTabItem('搭配', 2, 'icon_match')
+
+          // 我的
+          this.buildTabItem('我的', 3, 'icon_profile')
+        }
+        .width('100%')
+        .height(70)
+        .backgroundColor('rgba(255, 255, 255, 0.2)')
+        .borderRadius({ topLeft: 20, topRight: 20 })
+        .justifyContent(FlexAlign.SpaceAround)
+        .padding({ bottom: 10 })
+      }
+      .width('100%')
+      .height('100%')
     }
     .width('100%')
     .height('100%')
-    .alignItems(HorizontalAlign.Center)
+  }
+
+  // Tab项构建
+  @Builder
+  buildTabItem(label: string, index: number, iconName: string) {
+    Column() {
+      Image($r(`app.media.${iconName}`))
+        .width(24)
+        .height(24)
+        .opacity(this.selectedTab === index ? 1 : 0.6)
+
+      Text(label)
+        .fontSize(12)
+        .fontColor('#FFFFFF')
+        .opacity(this.selectedTab === index ? 1 : 0.6)
+        .margin({ top: 4 })
+    }
+    .onClick(() => {
+      this.onTabChange(index)
+    })
   }
 }
