@@ -9,7 +9,6 @@ struct HomePage {
   @State weatherText: string = '加载中...'
   @State city: string = '厦门'
   @State cityCode: string = '350200'
-  @State selectedTab: number = 0  // 0:首页 1:衣橱 2:搭配 3:我的
 
   @StorageLink('selectedCity') selectedCity: City | null = null
 
@@ -74,25 +73,6 @@ struct HomePage {
     router.pushUrl({ url: 'pages/CitySelectPage' })
   }
 
-  // 底部Tab切换
-  onTabChange(index: number) {
-    this.selectedTab = index
-    switch (index) {
-      case 0:
-        // 已在首页，无需跳转
-        break
-      case 1:
-        router.pushUrl({ url: 'pages/ClosetPage' })
-        break
-      case 2:
-        router.pushUrl({ url: 'pages/RecommendPage' })
-        break
-      case 3:
-        router.pushUrl({ url: 'pages/PersonalPage' })
-        break
-    }
-  }
-
   build() {
     Stack() {
       // 背景图片
@@ -103,132 +83,119 @@ struct HomePage {
 
       // 主要内容
       Column() {
-        // 顶部区域：图标 + 城市名 + 切换按钮
+        // 顶部区域：左侧（图标+城市名+切换按钮）+ 右上角"我的"图标
         Row() {
-          // 图标
-          Image($r('app.media.cover'))
-            .width(32)
-            .height(32)
-            .margin({ right: 8 })
+          // 左侧：定位图标 + 城市名 + 切换按钮
+          Row() {
+            // 定位图标
+            Image($r('app.media.icon_location'))
+              .width(28)
+              .height(28)
+              .margin({ right: 6 })
 
-          // 城市名
-          Text(this.city)
-            .fontSize(20)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#FFFFFF')
+            // 城市名
+            Text(this.city)
+              .fontSize(18)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#333333')
 
-          // 切换城市按钮
-          Button('切换')
-            .width(60)
-            .height(32)
-            .fontSize(14)
-            .backgroundColor('rgba(255, 255, 255, 0.3)')
-            .fontColor('#FFFFFF')
-            .borderRadius(16)
-            .margin({ left: 12 })
-            .onClick(() => {
-              this.onSelectCity()
-            })
+            // 切换城市按钮（无背景，小圆角）
+            Button('>')
+              .width(50)
+              .height(28)
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .backgroundColor(Color.Transparent)
+              .fontColor('#333333')
+              .borderRadius(4)
+              .margin({ left: 4 })
+              .onClick(() => {
+                this.onSelectCity()
+              })
+          }
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Start)
+
+          // 右上角："我的"图标按钮（无底色）
+          Column() {
+            Image($r('app.media.icon_profile'))
+              .width(28)
+              .height(28)
+          }
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/PersonalPage' })
+          })
         }
         .width('100%')
-        .padding({ left: 20, right: 20, top: 40 })
-        .justifyContent(FlexAlign.Start)
+        .padding({ left: 10, right: 20, top: 20 })
+        .alignItems(VerticalAlign.Center)
 
         // 温度显示
-        Text(`${this.temperature}°`)
+        Text(`${this.temperature}℃`)
           .fontSize(72)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .margin({ top: 40 })
-          .shadow({ radius: 10, color: '#00000040' })
+          .fontColor('#333333')
+          .margin({ top: 100 })
+          .shadow({ radius: 10, color: '#00000020' })
 
         // 天气描述
         Text(this.weatherText)
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
-          .fontColor('#FFFFFF')
+          .fontColor('#333333')
           .margin({ top: 8 })
-          .shadow({ radius: 8, color: '#00000040' })
+          .shadow({ radius: 8, color: '#00000020' })
 
-        // 两个圆角矩形按钮
+        // 两个卡片形按钮
         Row() {
-          // 进入衣橱按钮
-          Button('进入衣橱')
-            .width('45%')
-            .height(50)
-            .fontSize(18)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor('rgba(255, 255, 255, 0.5)')
-            .fontColor('#FFFFFF')
-            .borderRadius(25)
-            .onClick(() => {
-              router.pushUrl({ url: 'pages/ClosetPage' })
-            })
+          // 进入衣橱按钮（卡片样式）
+          Button() {
+            Column() {
+              //Image($r('app.media.icon_closet')).width(48).height(48).margin({ bottom: 8 })
 
-          // 查看推荐按钮
-          Button('查看推荐')
-            .width('45%')
-            .height(50)
-            .fontSize(18)
-            .fontWeight(FontWeight.Medium)
-            .backgroundColor('rgba(255, 255, 255, 0.5)')
-            .fontColor('#FFFFFF')
-            .borderRadius(25)
-            .onClick(() => {
-              router.pushUrl({ url: 'pages/RecommendPage' })
-            })
+              Text('我的衣橱').fontSize(22).fontWeight(FontWeight.Medium).fontColor('#333333')
+            }
+            .padding({ top: 20, bottom: 20 })
+          }
+          .width('42%')
+          .height(80)
+          .backgroundColor('rgba(255, 255, 255, 0.65)')
+          .borderRadius(16)
+          .type(ButtonType.Normal)
+          .shadow({ radius: 8, color: '#00000020' })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/ClosetPage' })
+          })
+
+          // 查看推荐按钮（卡片样式）
+          Button() {
+            Column() {
+              //Image($r('app.media.icon_match')).width(48).height(48).margin({ bottom: 8 })
+
+              Text('穿搭推荐').fontSize(22).fontWeight(FontWeight.Medium).fontColor('#333333')
+            }
+            .padding({ top: 20, bottom: 20 })
+          }
+          .width('42%')
+          .height(80)
+          .backgroundColor('rgba(255, 255, 255, 0.65)')
+          .borderRadius(16)
+          .type(ButtonType.Normal)
+          .shadow({ radius: 8, color: '#00000020' })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/RecommendPage' })
+          })
         }
         .width('100%')
         .justifyContent(FlexAlign.SpaceEvenly)
-        .margin({ top: 50, bottom: 30 })
+        .margin({ top: 350, bottom: 20 })
 
-        Blank()
-
-        // 底部Tab栏
-        Row() {
-          // 首页
-          this.buildTabItem('首页', 0, 'icon_home')
-
-          // 衣橱
-          this.buildTabItem('衣橱', 1, 'icon_closet')
-
-          // 搭配
-          this.buildTabItem('搭配', 2, 'icon_match')
-
-          // 我的
-          this.buildTabItem('我的', 3, 'icon_profile')
-        }
-        .width('100%')
-        .height(70)
-        .backgroundColor('rgba(255, 255, 255, 0.2)')
-        .borderRadius({ topLeft: 20, topRight: 20 })
-        .justifyContent(FlexAlign.SpaceAround)
-        .padding({ bottom: 10 })
+       // Blank()
       }
       .width('100%')
       .height('100%')
     }
     .width('100%')
     .height('100%')
-  }
-
-  // Tab项构建
-  @Builder
-  buildTabItem(label: string, index: number, iconName: string) {
-    Column() {
-      Image($r(`app.media.${iconName}`))
-        .width(24)
-        .height(24)
-        .opacity(this.selectedTab === index ? 1 : 0.6)
-
-      Text(label)
-        .fontSize(12)
-        .fontColor('#FFFFFF')
-        .opacity(this.selectedTab === index ? 1 : 0.6)
-        .margin({ top: 4 })
-    }
-    .onClick(() => {
-      this.onTabChange(index)
-    })
   }
 }
