@@ -4,6 +4,9 @@
     "pages/ClosetPage",
     "pages/RecommendPage",
     "pages/ConfirmPage",
-    "pages/CitySelectPage"
+    "pages/CitySelectPage",
+    "pages/AllClothesPage",
+    "pages/ClothingDetailPage",
+    "pages/PersonalPage"
   ]
 }

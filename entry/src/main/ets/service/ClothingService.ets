@@ -1,4 +1,4 @@
-import { ClothingDraft, ClothingInput } from '../model/Clothing'
+import { Clothing, ClothingDraft, ClothingInput } from '../model/Clothing'
 import { ClothingRepo } from '../repository/ClothingRepo'
 import { SegmentationService } from './SegmentationService'
 
@@ -24,6 +24,16 @@ export class ClothingService {
 
   async deleteClothing(id: number): Promise<void> {
     await this.repo.deleteById(id)
+  }
+
+  // 更新衣物信息
+  async updateClothing(clothing: Clothing): Promise<void> {
+    try {
+      await this.repo.update(clothing)
+    } catch (e) {
+      console.error('更新衣物失败', e)
+      throw new Error('更新衣物失败: ' + JSON.stringify(e))
+    }
   }
 
   // ======================
