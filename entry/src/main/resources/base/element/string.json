@@ -11,6 +11,30 @@
     {
       "name": "EntryAbility_label",
       "value": "穿搭盒子"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "form_description"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "form_label"
+    },
+    {
+      "name": "TodayOutfit_desc",
+      "value": "TodayOutfit"
+    },
+    {
+      "name": "TodayOutfit_display_name",
+      "value": "TodayOutfit"
+    },
+    {
+      "name": "card_title",
+      "value": "Title"
+    },
+    {
+      "name": "introduction",
+      "value": "Introduction"
     }
   ]
 }

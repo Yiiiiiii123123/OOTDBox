@@ -31,6 +31,7 @@ struct HomePage {
         this.loadWeather()
       }
     }
+
   }
 
   async loadWeather() {
@@ -56,6 +57,13 @@ struct HomePage {
         this.city = result.city
         this.temperature = result.temperature
         this.weatherText = `${result.weather}`
+
+        // 🌟 【新增关键代码】：将数据同步到全局广播站
+        AppStorage.setOrCreate('currentCityName', result.city);
+        AppStorage.setOrCreate('currentCityCode', this.cityCode);
+        AppStorage.setOrCreate('currentTemp', result.temperature);
+        AppStorage.setOrCreate('currentWeatherText', result.weather);
+
       } else {
         this.weatherText = `获取失败`
       }
@@ -67,6 +75,7 @@ struct HomePage {
     } finally {
       this.isUpdatingWeather = false
     }
+
   }
 
   onSelectCity() {

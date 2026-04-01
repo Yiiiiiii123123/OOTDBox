@@ -1,33 +1,49 @@
-import { Clothing } from '../model/Clothing'
+import { Clothing, MainCategory, SubCategory } from '../model/Clothing'
 import { ClothingRepo } from '../repository/ClothingRepo'
 import { ClothingService } from '../service/ClothingService'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import router from '@ohos.router'
-import { ClothingCategory, CATEGORY_LIST } from '../model/Category'
 
-// 使用统一的分类类型
-type CategoryKey = ClothingCategory
-
-// 使用统一的分类配置
-interface Category {
-  key: CategoryKey
-  label: string
+// 定义左侧侧边栏的 UI 分类配置 (包含 'all' 和 MainCategory)
+interface UICategory {
+  key: string;
+  label: string;
 }
+
+const UI_CATEGORY_LIST: UICategory[] = [
+  { key: 'all', label: '全部' },
+  { key: MainCategory.TOP, label: '上装' },
+  { key: MainCategory.BOTTOM, label: '下装' },
+  { key: MainCategory.ONE_PIECE, label: '连体' },
+  { key: MainCategory.OUTERWEAR, label: '外套' },
+  { key: MainCategory.SHOES, label: '鞋子' },
+  { key: MainCategory.ACCESSORY, label: '配饰' }
+]
 
 @Entry
 @Component
 struct ClosetPage {
-
   @State clothingList: Clothing[] = []
   @State filteredList: Clothing[] = []
-  @State selectedCategory: CategoryKey = ClothingCategory.ALL
+  @State selectedCategory: string = 'all' // 当前选中的一级分类
 
   private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
+  private categories: UICategory[] = UI_CATEGORY_LIST
 
-  // 使用统一的分类列表
-  private categories: Category[] = CATEGORY_LIST
+  // --- 辅助函数：将英文二级分类转为中文用于界面展示 ---
+  private getSubCategoryLabel(subCategory: string): string {
+    const labelMap: Record<string, string> = {
+      't_shirt': 'T恤', 'shirt': '衬衫', 'sweater': '毛衣/卫衣',
+      'jeans': '牛仔裤', 'shorts': '短裤', 'casual_pants': '休闲裤', 'skirt': '半身裙',
+      'dress': '连衣裙', 'jumpsuit': '连体裤',
+      'jacket': '夹克', 'coat': '大衣', 'down_jacket': '羽绒服',
+      'sneakers': '运动鞋', 'boots': '靴子',
+      'scarf': '围巾', 'hat': '帽子'
+    };
+    return labelMap[subCategory] || subCategory;
+  }
 
   aboutToAppear() {
     this.loadData()
@@ -42,12 +58,13 @@ struct ClosetPage {
       const list = await this.repo.getAll()
       this.clothingList = list ?? []
       console.info(`加载了 ${this.clothingList.length} 件衣物`)
-      // 打印分类分布用于调试
-      const categoryStats = this.clothingList.reduce((acc, item) => {
-        acc[item.category] = (acc[item.category] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
-      console.info('分类分布:', JSON.stringify(categoryStats))
+
+      const categoryStats = this.clothingList.reduce((acc: Record<string, number>, item: Clothing) => {
+        const cat = item.mainCategory || 'unknown';
+        acc[cat] = (acc[cat] || 0) + 1;
+        return acc;
+      }, {})
+      console.info('一级分类分布:', JSON.stringify(categoryStats))
 
       this.filterByCategory(this.selectedCategory)
     } catch (e) {
@@ -55,29 +72,19 @@ struct ClosetPage {
     }
   }
 
-  // 根据分类过滤衣物
-  filterByCategory(category: CategoryKey) {
-    console.info(`筛选分类: ${category}`)
-    if (category === ClothingCategory.ALL) {
+  // 根据 mainCategory 过滤衣物
+  filterByCategory(categoryKey: string) {
+    if (categoryKey === 'all') {
       this.filteredList = [...this.clothingList]
     } else {
-      this.filteredList = this.clothingList.filter(item => {
-        const itemCategory = item.category || ''
-        // 精确匹配
-        const match = itemCategory === category
-        if (!match) {
-          console.debug(`不匹配: item.category="${itemCategory}" vs filter="${category}"`)
-        }
-        return match
-      })
+      this.filteredList = this.clothingList.filter(item => item.mainCategory === categoryKey)
     }
-    console.info(`筛选结果: ${this.filteredList.length} 件`)
   }
 
   // 切换分类
-  selectCategory(category: CategoryKey) {
-    this.selectedCategory = category
-    this.filterByCategory(category)
+  selectCategory(categoryKey: string) {
+    this.selectedCategory = categoryKey
+    this.filterByCategory(categoryKey)
   }
 
   // 跳转到所有衣物管理页面
@@ -89,7 +96,7 @@ struct ClosetPage {
   goToClothingDetail(item: Clothing) {
     router.pushUrl({
       url: 'pages/ClothingDetailPage',
-      params: { clothing: item }
+      params: { clothingItem: item }
     })
   }
 
@@ -111,7 +118,6 @@ struct ClosetPage {
 
           Blank()
 
-          // 管理衣物按钮
           Button('管理衣物')
             .width(100)
             .height(40)
@@ -124,14 +130,13 @@ struct ClosetPage {
             })
         }
         .width('100%')
-        .padding({ left: 20, right: 20, top: 48, bottom: 12 })
+        .padding({ left: 20, right: 20, top: 32, bottom: 12 })
 
-        // 圆角矩形容器（左上角和右上角圆角）
+        // 圆角矩形容器
         Column() {
           Row() {
             // 左侧导航栏
             this.buildCategorySidebar()
-
             // 右侧内容区（网格布局）
             this.buildClothingGrid()
           }
@@ -148,15 +153,9 @@ struct ClosetPage {
 
       // 右下角加号按钮
       Button() {
-        Text('+')
-          .fontSize(32)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
+        Text('+').fontSize(32).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
       }
-      .width(56)
-      .height(56)
-      .backgroundColor('#007AFF')
-      .borderRadius(28)
+      .width(56).height(56).backgroundColor('#007AFF').borderRadius(28)
       .shadow({ radius: 8, color: '#00000030' })
       .position({ x: '80%', y: '85%' })
       .onClick(async () => {
@@ -171,7 +170,7 @@ struct ClosetPage {
   @Builder
   buildCategorySidebar() {
     Column() {
-      ForEach(this.categories, (category: Category) => {
+      ForEach(this.categories, (category: UICategory) => {
         Button(category.label)
           .width('100%')
           .height(48)
@@ -189,6 +188,7 @@ struct ClosetPage {
     .height('100%')
     .padding({ left: 12, right: 12, top: 16 })
     .backgroundColor('rgba(248, 248, 248, 0.8)')
+    .borderRadius({ topLeft: 24, topRight: 0, bottomLeft: 0, bottomRight: 0 })
   }
 
   // 右侧网格布局
@@ -196,49 +196,24 @@ struct ClosetPage {
   buildClothingGrid() {
     Column() {
       if (this.filteredList.length === 0) {
-        // 空状态
         Column() {
-          Text('📭')
-            .fontSize(48)
-            .margin({ bottom: 16 })
-
-          Text('暂无衣物')
-            .fontSize(16)
-            .fontColor('#999')
-            .margin({ bottom: 8 })
-
-          Text('点击右下角"+"添加衣物')
-            .fontSize(14)
-            .fontColor('#CCC')
+          Text('📭').fontSize(48).margin({ bottom: 16 })
+          Text('暂无衣物').fontSize(16).fontColor('#999').margin({ bottom: 8 })
         }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
+        .width('100%').height('100%').justifyContent(FlexAlign.Center)
       } else {
         Grid() {
           ForEach(this.filteredList, (item: Clothing) => {
             GridItem() {
-              // 衣物卡片
               Column() {
-                // 衣物图片
-                if (item.cutoutUri) {
-                  Image(item.cutoutUri)
-                    .width('100%')
-                    .aspectRatio(1)
-                    .objectFit(ImageFit.Cover)
-                    .borderRadius(12)
-                } else if (item.imageUri) {
+                if (item.imageUri) {
                   Image(item.imageUri)
                     .width('100%')
                     .aspectRatio(1)
                     .objectFit(ImageFit.Cover)
                     .borderRadius(12)
                 } else {
-                  Column() {
-                    Text('📷')
-                      .fontSize(40)
-                  }
+                  Column() { Text('📷').fontSize(40) }
                   .width('100%')
                   .aspectRatio(1)
                   .backgroundColor('#F0F0F0')
@@ -246,8 +221,7 @@ struct ClosetPage {
                   .justifyContent(FlexAlign.Center)
                 }
 
-                // 分类标签
-                Text(item.category || '未分类')
+                Text(this.getSubCategoryLabel(item.subCategory))
                   .fontSize(12)
                   .fontColor('#666')
                   .margin({ top: 4 })
@@ -274,31 +248,23 @@ struct ClosetPage {
     .padding({ top: 16 })
   }
 
-  // 选择图片
+  // 🌟 核心修改：直接跳转到确认页
   async selectImage() {
     try {
       const photoPicker = new picker.PhotoViewPicker()
-
       const options: picker.PhotoSelectOptions = {
         MIMEType: picker.PhotoViewMIMETypes.IMAGE_TYPE,
         maxSelectNumber: 1
       }
-
       const result: picker.PhotoSelectResult = await photoPicker.select(options)
-
-      if (!result || !result.photoUris || result.photoUris.length === 0) {
-        return
-      }
+      if (!result || !result.photoUris || result.photoUris.length === 0) return
 
       const uri: string = result.photoUris[0]
 
-      const draft = await this.service.analyzeClothing(uri)
-
-      console.log('AI结果:', JSON.stringify(draft))
-
+      // 直接把图片 URI 当作参数传过去
       router.pushUrl({
         url: 'pages/ConfirmPage',
-        params: draft
+        params: { imageUri: uri }
       })
 
     } catch (error) {

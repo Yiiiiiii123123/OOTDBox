@@ -1,270 +1,151 @@
-import { Clothing } from '../model/Clothing'
-import { ClothingRepo } from '../repository/ClothingRepo'
-import { ClothingService } from '../service/ClothingService'
-import router from '@ohos.router'
+import router from '@ohos.router';
+import { Clothing } from '../model/Clothing';
+import { ClothingService } from '../service/ClothingService';
+import { ClothingRepo } from '../repository/ClothingRepo'; // 🌟 引入 Repo
+import { ClothingUtils } from '../utils/ClothingUtils';   // 🌟 引入工具类
 
 @Entry
 @Component
 struct ClothingDetailPage {
-  @State clothing: Clothing | null = null
-  @State isEditing: boolean = false
-  @State editCategory: string = ''
-  @State editColor: string = ''
-  @State editBrand: string = ''
+  // 初始数据从路由拿
+  @State clothing: Clothing = (router.getParams() as Record<string, Clothing>)['clothingItem'];
 
-  private repo: ClothingRepo = new ClothingRepo()
-  private service: ClothingService = new ClothingService()
+  private service: ClothingService = new ClothingService();
+  private repo: ClothingRepo = new ClothingRepo(); // 实例化 Repo
 
-  aboutToAppear() {
-    const params = router.getParams() as Record<string, Object>
-    if (params && params['clothing']) {
-      this.clothing = params['clothing'] as Clothing
-      this.editCategory = this.clothing?.category || ''
-      this.editColor = this.clothing?.color || ''
+  // 🌟 关键：每次进入或返回此页面都会触发
+  onPageShow() {
+    this.refreshData();
+  }
+
+  async refreshData() {
+    if (this.clothing && this.clothing.id) {
+      try {
+        const latest = await this.repo.getById(this.clothing.id);
+        if (latest) {
+          // 重新赋值给 @State 变量，UI 会感知变化并局部刷新
+          this.clothing = latest;
+          console.info('ClothingDetail', '数据已同步最新状态');
+        }
+      } catch (err) {
+        console.error('ClothingDetail', '刷新失败: ' + JSON.stringify(err));
+      }
     }
   }
 
-  // 保存修改
-  // 保存修改
-  // 保存修改
-  async saveChanges() {
-    if (!this.clothing?.id) return
-
-    // 直接修改原对象属性
-    this.clothing.category = this.editCategory
-    this.clothing.color = this.editColor
-
-    try {
-      await this.service.updateClothing(this.clothing)
-      this.isEditing = false
-      console.info('保存成功')
-    } catch (e) {
-      console.error('保存失败', e)
-    }
+  // --- 辅助函数：计算相对时间 ---
+  private getRelativeTime(timestamp: number): string {
+    if (!timestamp || timestamp === 0) return "还未穿过";
+    const now = new Date().getTime();
+    const diffDays = Math.floor((now - timestamp) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "今天穿过";
+    if (diffDays === 1) return "昨天穿过";
+    if (diffDays < 7) return `${diffDays}天前`;
+    return "很久没穿了";
   }
-
-  // 删除衣物
-  async deleteClothing() {
-    if (!this.clothing?.id) return
-
-    await this.service.deleteClothing(this.clothing.id)
-    router.back()
-  }
-
-  // 分类选项
-  categoryOptions: SelectOption[] = [
-    { value: '上装' },
-    { value: '下装' },
-    { value: '连体' },
-    { value: '鞋子' },
-    { value: '配饰' }
-  ]
 
   build() {
-    Stack() {
-      // 背景
-      Image($r('app.media.background1'))
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Cover)
+    Column() {
+      // 1. 顶部导航栏
+      Row() {
+        Image($r('app.media.icon_back'))
+          .width(24).height(24)
+          .onClick(() => router.back())
+        Text('单品详情').fontSize(20).fontWeight(FontWeight.Bold).margin({ left: 16 })
+      }
+      .width('100%').padding(16).alignItems(VerticalAlign.Center)
 
-      Column() {
-        // 标题栏
-        Row() {
-          Button('返回')
-            .width(60)
-            .height(40)
-            .backgroundColor('rgba(255,255,255,0.8)')
-            .fontColor('#333333')
-            .borderRadius(20)
-            .onClick(() => {
-              router.back()
-            })
+      Scroll() {
+        Column({ space: 20 }) {
+          // 2. 图片 (自动根据最新的 clothing.imageUri 刷新)
+          Image(this.clothing.imageUri)
+            .width('90%').aspectRatio(1).borderRadius(16).objectFit(ImageFit.Cover)
 
-          Blank()
-
-          Text('衣物详情')
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#333333')
-
-          Blank()
-
-          if (!this.isEditing) {
-            Button('编辑')
-              .width(60)
-              .height(40)
-              .backgroundColor('rgba(255,255,255,0.8)')
-              .fontColor('#007AFF')
+          // 3. 汉化品类与颜色 (使用工具类)
+          Row({ space: 16 }) {
+            Text(ClothingUtils.getLabelBySubCategory(this.clothing.subCategory)) // 🌟 使用工具类
+              .fontSize(16).fontWeight(FontWeight.Medium)
+              .backgroundColor('#F0F0F0').padding({ top: 6, bottom: 6, left: 16, right: 16 })
               .borderRadius(20)
-              .onClick(() => {
-                this.isEditing = true
+
+            Blank()
+
+            Row({ space: 8 }) {
+              Text('主色调:').fontSize(14).fontColor('#666')
+              Circle({ width: 24, height: 24 })
+                .fill(ClothingUtils.getColorHex(this.clothing.color)) // 🌟 使用工具类
+                .border({ width: 1, color: '#E0E0E0' })
+            }.alignItems(VerticalAlign.Center)
+          }.width('90%')
+
+          // 4. 保暖可视化 (自动刷新)
+          Column({ space: 8 }) {
+            Text('保暖指数').fontSize(14).fontColor('#666').width('100%')
+            Row({ space: 4 }) {
+              ForEach(new Array(this.clothing.warmthIndex).fill(0), () => {
+                Text('🔥').fontSize(20)
               })
-          } else {
-            Row() {
-              Button('取消')
-                .width(60)
-                .height(40)
-                .backgroundColor('rgba(255,255,255,0.8)')
-                .fontColor('#999')
-                .borderRadius(20)
-                .margin({ right: 8 })
-                .onClick(() => {
-                  this.isEditing = false
-                  this.editCategory = this.clothing?.category || ''
-                  this.editColor = this.clothing?.color || ''
-                })
+              Text(`(${this.clothing.warmthIndex}/10)`).fontSize(14).fontColor('#999').margin({ left: 8 })
+            }.width('100%')
+          }.width('90%')
 
-              Button('保存')
-                .width(60)
-                .height(40)
-                .backgroundColor('#007AFF')
-                .fontColor('#FFFFFF')
-                .borderRadius(20)
-                .onClick(() => {
-                  this.saveChanges()
-                })
-            }
+          Divider().width('90%').color('#EEEEEE')
+
+          // 5. 统计面板 (自动刷新)
+          Row() {
+            Column({ space: 4 }) {
+              Text(this.clothing.wearCount.toString()).fontSize(28).fontWeight(FontWeight.Bolder)
+              Text('总穿着次数').fontSize(12).fontColor('#999')
+            }.layoutWeight(1)
+
+            Divider().vertical(true).height(40).color('#EEEEEE')
+
+            Column({ space: 4 }) {
+              Text(this.getRelativeTime(this.clothing.lastWornDate)).fontSize(18).fontWeight(FontWeight.Bold)
+              Text('上次穿戴').fontSize(12).fontColor('#999')
+            }.layoutWeight(1)
           }
+          .width('90%').backgroundColor('#FAFAFA').borderRadius(12).padding(16)
+
+          Blank().height(40)
+
+          // 6. 编辑与删除
+          Row({ space: 20 }) {
+            Button('编辑资料')
+              .backgroundColor('#F0F0F0').fontColor('#333').layoutWeight(1)
+              .onClick(() => {
+                router.pushUrl({
+                  url: 'pages/ConfirmPage',
+                  params: {
+                    imageUri: this.clothing.imageUri,
+                    editMode: true,
+                    oldId: this.clothing.id,
+                    clothingItem: this.clothing // 传过去回填
+                  }
+                })
+              })
+
+            Button('删除单品')
+              .backgroundColor('#FF4D4F').fontColor(Color.White).layoutWeight(1)
+              .onClick(() => this.showDeleteDialog())
+          }.width('90%')
         }
-        .width('100%')
-        .padding({ left: 20, right: 20, top: 48, bottom: 20 })
+      }.layoutWeight(1)
+    }.width('100%').height('100%')
+  }
 
-        if (this.clothing) {
-          Scroll() {
-            Column() {
-              // 衣物图片
-              if (this.clothing.imageUri) {
-                Image(this.clothing.imageUri)
-                  .width('80%')
-                  .aspectRatio(1)
-                  .objectFit(ImageFit.Cover)
-                  .borderRadius(24)
-                  .margin({ bottom: 24 })
-              } else {
-                Column() {
-                  Text('📷')
-                    .fontSize(80)
-                }
-                .width('80%')
-                .aspectRatio(1)
-                .backgroundColor('#F0F0F0')
-                .borderRadius(24)
-                .margin({ bottom: 24 })
-                .justifyContent(FlexAlign.Center)
-              }
-
-              // 信息卡片
-              Column() {
-                if (this.isEditing) {
-                  // 编辑模式
-                  Row() {
-                    Text('分类:')
-                      .fontSize(16)
-                      .width(80)
-
-                    Select(this.categoryOptions)
-                      .selected(0)
-                      .value(this.editCategory || '请选择')
-                      .onSelect((index: number, value: string) => {
-                        this.editCategory = value
-                      })
-                      .width(200)
-                  }
-                  .width('100%')
-                  .margin({ bottom: 16 })
-
-                  Row() {
-                    Text('颜色:')
-                      .fontSize(16)
-                      .width(80)
-
-                    TextInput({ text: this.editColor })
-                      .width(200)
-                      .height(40)
-                      .backgroundColor('#F5F5F5')
-                      .borderRadius(8)
-                      .onChange((value: string) => {
-                        this.editColor = value
-                      })
-                  }
-                  .width('100%')
-                  .margin({ bottom: 16 })
-
-                  Row() {
-                    Text('品牌:')
-                      .fontSize(16)
-                      .width(80)
-
-                    TextInput({ text: this.editBrand })
-                      .width(200)
-                      .height(40)
-                      .backgroundColor('#F5F5F5')
-                      .borderRadius(8)
-                      .onChange((value: string) => {
-                        this.editBrand = value
-                      })
-                  }
-                  .width('100%')
-                } else {
-                  // 查看模式
-                 // InfoRow('分类', this.clothing.category || '未标注')
-                 // InfoRow('颜色', this.clothing.color || '未标注')
-                 // InfoRow('添加时间', this.clothing.createTime || '未知')
-                }
-              }
-              .width('90%')
-              .padding(20)
-              .backgroundColor('rgba(255,255,255,0.9)')
-              .borderRadius(20)
-              .margin({ top: 16 })
-
-              // 删除按钮
-              Button('删除衣物')
-                .width('80%')
-                .height(50)
-                .fontSize(16)
-                .backgroundColor('#ff4d4f')
-                .fontColor('#FFFFFF')
-                .borderRadius(25)
-                .margin({ top: 30, bottom: 30 })
-                .onClick(() => {
-                  this.deleteClothing()
-                })
-            }
-            .width('100%')
-            .alignItems(HorizontalAlign.Center)
-          }
-          .layoutWeight(1)
+  private showDeleteDialog() {
+    AlertDialog.show({
+      title: '确认删除',
+      message: '删除后无法找回，确定吗？',
+      primaryButton: { value: '取消', action: () => {} },
+      secondaryButton: {
+        value: '删除',
+        fontColor: '#FF4D4F',
+        action: async () => {
+          if (await this.service.deleteClothingSafely(this.clothing.id)) router.back();
         }
       }
-      .width('100%')
-      .height('100%')
-    }
-    .width('100%')
-    .height('100%')
-  }
-}
-
-// 信息行组件
-@Component
-struct InfoRow {
-  @Prop label: string = ''
-  @Prop value: string = ''
-
-  build() {
-    Row() {
-      Text(this.label + ':')
-        .fontSize(16)
-        .fontColor('#666')
-        .width(80)
-
-      Text(this.value)
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#333')
-    }
-    .width('100%')
-    .margin({ bottom: 12 })
+    })
   }
 }

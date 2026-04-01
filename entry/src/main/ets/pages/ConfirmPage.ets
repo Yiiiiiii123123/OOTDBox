@@ -1,149 +1,136 @@
-import router from '@ohos.router'
-import { ClothingService } from '../service/ClothingService'
-import { ClothingDraft } from '../model/Clothing'
-import { ClothingCategory, CATEGORY_LIST, normalizeCategory, Category } from '../model/Category'
+import router from '@ohos.router';
+import util from '@ohos.util';
+import { Clothing, ClothingColor } from '../model/Clothing';
+import { ClothingService } from '../service/ClothingService';
+// 🌟 引入提取出来的工具类和配置常量
+import { COLOR_OPTIONS, WARMTH_OPTIONS, CATEGORY_UI_DATA } from '../utils/ClothingConfig';
+import { ClothingUtils } from '../utils/ClothingUtils';
+import { ColorOption, WarmthOption } from '../utils/ClothingConfig';
 
 @Entry
 @Component
 struct ConfirmPage {
+  // 1. 获取路由参数
+  private params = router.getParams() as Record<string, Object>;
+  @State imageUri: string = this.params?.['imageUri'] as string || '';
+  @State isEditMode: boolean = this.params?.['editMode'] as boolean || false;
+  @State oldId: string = this.params?.['oldId'] as string || '';
 
-  @State imageUri: string = ''
-  @State category: string = ''
-  @State color: string = ''
+  // 2. 响应式表单状态
+  @State selectedSubLabel: string = 'T恤';
+  @State selectedColor: ClothingColor = ClothingColor.BLACK;
+  @State selectedWarmth: number = 6;
 
-  private service: ClothingService = new ClothingService()
-  private colors: string[] = ['黑色', '白色', '灰色', '蓝色', '红色', '绿色', '黄色', '棕色']
+  private service: ClothingService = new ClothingService();
 
-  onPageShow() {
-    const params = router.getParams() as Partial<ClothingDraft>
-    this.imageUri = params.imageUri ?? ''
-    this.category = normalizeCategory(params.category ?? '')
-    this.color = params.color ?? ''
+  aboutToAppear() {
+    // 🌟 编辑模式下，使用工具类自动回填数据
+    if (this.isEditMode && this.params?.['clothingItem']) {
+      const item = this.params['clothingItem'] as Clothing;
+      this.selectedSubLabel = ClothingUtils.getLabelBySubCategory(item.subCategory);
+      this.selectedColor = item.color;
+      this.selectedWarmth = item.warmthIndex;
+    }
+  }
+
+  /**
+   * 保存按钮点击事件
+   */
+  async handleSave() {
+    // 使用工具类将中文标签转回枚举
+    const subEnum = ClothingUtils.getSubCategoryByLabel(this.selectedSubLabel);
+
+    if (this.isEditMode) {
+      // 编辑模式：更新现有记录
+      const updatedItem = new Clothing(this.oldId, this.imageUri, subEnum, this.selectedWarmth, this.selectedColor);
+      const success = await this.service.updateClothing(updatedItem);
+      if (success) router.back();
+    } else {
+      // 新增模式：生成新 UUID 并插入
+      const newId = util.generateRandomUUID();
+      const newItem = new Clothing(newId, this.imageUri, subEnum, this.selectedWarmth, this.selectedColor);
+      const success = await this.service.addClothing(newItem);
+      if (success) router.back();
+    }
   }
 
   build() {
     Column() {
-      // 图片展示
-      Image(this.imageUri)
-        .width(200)
-        .height(200)
-        .margin({ top: 20, bottom: 20 })
-        .objectFit(ImageFit.Cover)
-        .borderRadius(12)
+      // --- 顶部导航栏 ---
+      Row() {
+        Text('取消')
+          .fontSize(16).fontColor('#666')
+          .onClick(() => router.back())
 
-      // 类别选择
-      Text('选择类别')
-        .fontSize(18)
-        .margin({ bottom: 10 })
-        .fontWeight(FontWeight.Medium)
+        Text(this.isEditMode ? '修改衣物信息' : '录入新衣物')
+          .fontSize(18).fontWeight(FontWeight.Bold)
 
-      // 分类按钮网格
-      Grid() {
-        ForEach(CATEGORY_LIST.filter((c: Category) => c.key !== ClothingCategory.ALL), (item: Category) => {
-          GridItem() {
-            Button(item.label)
-              .width('100%')
-              .height(40)
-              .backgroundColor(this.category === item.key ? '#007dff' : '#f5f5f5')
-              .fontColor(this.category === item.key ? '#ffffff' : '#333333')
-              .borderRadius(20)
-              .fontSize(14)
-              .onClick(() => {
-                this.category = item.key
+        Text('完成')
+          .fontSize(16).fontColor('#007AFF').fontWeight(FontWeight.Bold)
+          .onClick(() => this.handleSave())
+      }
+      .width('100%').padding(16).justifyContent(FlexAlign.SpaceBetween)
+
+      Scroll() {
+        Column({ space: 25 }) {
+          // --- 图片预览区 ---
+          Image(this.imageUri)
+            .width(200).height(200)
+            .borderRadius(16).objectFit(ImageFit.Cover)
+            .shadow({ radius: 10, color: '#15000000' })
+            .margin({ top: 10 })
+
+          // --- 选项 1：款式选择 (使用配置常量) ---
+          Column({ space: 8 }) {
+            Text('款式分类').fontSize(14).fontColor('#999').width('90%')
+            TextPicker({ range: CATEGORY_UI_DATA })
+              .height(120).width('100%')
+              .onChange((value: string | string[]) => {
+                if (Array.isArray(value)) {
+                  this.selectedSubLabel = value[1]; // 获取二级分类中文名
+                }
               })
-          }
-        })
-      }
-      .columnsTemplate('1fr 1fr 1fr')
-      .width('90%')
-      .height(90)
-      .margin({ bottom: 20 })
+          }.width('95%')
 
-      // 颜色选择
-      Text('选择主颜色')
-        .fontSize(18)
-        .margin({ bottom: 10 })
-        .fontWeight(FontWeight.Medium)
+          // --- 选项 2：主色调 (使用配置常量) ---
+          Column({ space: 12 }) {
+            Text('主色调').fontSize(14).fontColor('#999').width('100%')
+            Row() {
+              ForEach(COLOR_OPTIONS, (item: ColorOption) => {
+                Column({ space: 6 }) {
+                  Circle({ width: 34, height: 34 })
+                    .fill(item.hex)
+                    .border({
+                      width: this.selectedColor === item.value ? 3 : 1,
+                      color: this.selectedColor === item.value ? '#007AFF' : '#EEEEEE'
+                    })
+                    .onClick(() => this.selectedColor = item.value)
+                  Text(item.label).fontSize(12).fontColor('#666')
+                }
+              })
+            }.width('100%').justifyContent(FlexAlign.SpaceBetween)
+          }.width('90%')
 
-      Flex({
-        wrap: FlexWrap.Wrap,
-        justifyContent: FlexAlign.Start
-      }) {
-        ForEach(this.colors, (item: string) => {
-          Row() {
-            Circle()
-              .width(16)
-              .height(16)
-              .fill(this.getColorValue(item))
-              .margin({ right: 6 })
-              .stroke(this.color === item ? '#007dff' : 'transparent')
-              .strokeWidth(2)
+          // --- 选项 3：保暖指数 (使用配置常量) ---
+          Column({ space: 12 }) {
+            Text('保暖厚度描述').fontSize(14).fontColor('#999').width('100%')
+            Flex({ justifyContent: FlexAlign.SpaceBetween }) {
+              ForEach(WARMTH_OPTIONS, (item: WarmthOption) => {
+                Button(item.label)
+                  .fontSize(13)
+                  .height(36).layoutWeight(1).margin({ left: 4, right: 4 })
+                  .backgroundColor(this.selectedWarmth === item.value ? '#007AFF' : '#F5F5F5')
+                  .fontColor(this.selectedWarmth === item.value ? Color.White : '#333')
+                  .onClick(() => this.selectedWarmth = item.value)
+              })
+            }.width('100%')
+          }.width('90%')
 
-            Text(item)
-              .fontSize(14)
-              .fontColor(this.color === item ? '#007dff' : '#333333')
-          }
-          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .margin({ right: 10, bottom: 10 })
-          .backgroundColor(this.color === item ? '#e6f7ff' : '#f5f5f5')
-          .borderRadius(20)
-          .border({
-            width: this.color === item ? 1 : 0,
-            color: '#007dff'
-          })
-          .onClick(() => {
-            this.color = item
-          })
-        })
-      }
-      .width('90%')
-      .margin({ bottom: 30 })
-
-      // 确认按钮
-      Button('确认保存')
-        .width('80%')
-        .height(45)
-        .backgroundColor('#52c41a')
-        .enabled(this.category !== '' && this.color !== '')
-        .opacity(this.category !== '' && this.color !== '' ? 1 : 0.5)
-        .onClick(async () => {
-          if (!this.category || !this.color) {
-            console.error('请先选择类别和颜色')
-            return
-          }
-
-          const normalizedCategory = normalizeCategory(this.category)
-
-          await this.service.saveClothing({
-            imageUri: this.imageUri,
-            category: normalizedCategory,
-            color: this.color,
-            cutoutUri: this.imageUri
-          })
-
-          console.log('保存成功:', normalizedCategory, this.color)
-          router.back()
-        })
-
+          Blank().height(60) // 底部缓冲
+        }
+        .width('100%')
+      }.layoutWeight(1)
     }
-    .width('100%')
-    .height('100%')
-    .alignItems(HorizontalAlign.Center)
-    .justifyContent(FlexAlign.Start)
-    .backgroundColor('#ffffff')
-  }
-
-  getColorValue(name: string): string {
-    const colorMap: Record<string, string> = {
-      '黑色': '#000000',
-      '白色': '#ffffff',
-      '灰色': '#888888',
-      '蓝色': '#1677ff',
-      '红色': '#ff4d4f',
-      '绿色': '#52c41a',
-      '黄色': '#fadb14',
-      '棕色': '#8B4513'
-    }
-    return colorMap[name] || '#cccccc'
+    .width('100%').height('100%').backgroundColor(Color.White)
   }
 }
