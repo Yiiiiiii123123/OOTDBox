@@ -1,12 +1,17 @@
 import router from '@ohos.router';
+import { APP_WALLPAPERS } from '../utils/BackgroundList';
 
 @Entry
 @Component
 struct PersonalPage {
+
+  @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
+
+
   build() {
     Stack() {
       // 背景
-      Image($r('app.media.background1'))
+      Image(APP_WALLPAPERS[this.wallpaperIndex])
         .width('100%').height('100%').objectFit(ImageFit.Cover).opacity(0.2)
 
       Column() {
@@ -30,12 +35,23 @@ struct PersonalPage {
 
           // 入口：衣橱统计 (预留)
           this.buildMenuListItem('衣橱数据分析', '📊', () => {
-            // TODO: 跳转统计页
+            // 🌟 使用 router.pushUrl 跳转到数据分析页面
+            router.pushUrl({
+              url: 'pages/DataAnalysisView' // 注意：这里的路径必须和你的实际路径一致
+            }).catch((err: Error) => {
+              console.error('RouterError', '跳转数据分析页失败: ' + err.message);
+            });
           })
 
           // 入口：设置
           this.buildMenuListItem('设置', '⚙️', () => {
-            // TODO: 跳转设置页
+            // 🌟 使用 router.pushUrl 跳转到设置页面
+            router.pushUrl({
+              url: 'pages/SettingsView'
+            }).catch((err: Error) => {
+              console.error('RouterError', '跳转设置页失败: ' + err.message);
+            });
+
           })
         }
         .width('90%').borderRadius(16).backgroundColor(Color.White).shadow({ radius: 10, color: '#10000000' })

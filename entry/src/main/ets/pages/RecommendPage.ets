@@ -8,6 +8,11 @@ import { City } from '../utils/CityList';
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import dataPreferences from '@ohos.data.preferences'; // 🌟 用于小组件数据共享
+import formProvider from '@ohos.app.form.formProvider';
+import formBindingData from '@ohos.app.form.formBindingData';
+import fs from '@ohos.file.fs'; // 🌟 引入文件系统，用于读取相册图片
+import { APP_WALLPAPERS } from '../utils/BackgroundList';
+
 
 @Entry
 @Component
@@ -17,6 +22,8 @@ struct RecommendPage {
   @StorageProp('currentCityCode') cityCode: string = '350200'
   @StorageProp('currentTemp') @Watch('onTempChange') temperature: number = 20
   @StorageProp('currentWeatherText') weatherText: string = '获取中'
+
+  @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
   // 监听全局选中的城市
   @StorageLink('selectedCity') selectedCity: City | null = null
@@ -117,34 +124,61 @@ struct RecommendPage {
     if (this.outfit.length === 0) return;
 
     try {
-      // 1. 同步数据到小组件首选项 (Preferences)
       const preferences = await dataPreferences.getPreferences(getContext(this), 'outfit_storage');
-      // 把图片路径拼成字符串 "path1,path2..."
       const imgPaths = this.outfit.map(item => item.imageUri).join(',');
 
+      // 1. 先把沙箱路径存起来，供以后使用
       await preferences.put('today_images', imgPaths);
       await preferences.put('today_temp', this.temperature + '℃');
-      await preferences.flush(); // 强制刷盘
+      await preferences.flush();
 
-      // 2. (可选) 增加这几件衣服的穿着次数 wearCount
-      // await this.clothingService.increaseWearCount(this.outfit);
+      // 2. 🌟 核心：将私有图片转为卡片能读的共享内存
+      try {
+        let formId = await preferences.get('bound_form_id', '') as string;
+        if (formId && formId !== '') {
+
+          let memoryPaths: string[] = [];
+          let formImages: Record<string, number> = {};
+
+          // 打开衣服图片，获取文件描述符(fd)
+          for (let i = 0; i < this.outfit.length; i++) {
+            let uri = this.outfit[i].imageUri;
+            try {
+              let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
+              let memKey = 'pic_' + i;
+              formImages[memKey] = file.fd;
+              memoryPaths.push('memory://' + memKey); // 转换为 memory:// 路径
+            } catch (fileErr) {
+              console.error('RecommendPage', '图片打开失败: ' + uri);
+            }
+          }
+
+          // 🌟 注意这里的 Record<string, Object>，允许放入 formImages
+          let formData: Record<string, Object> = {
+            'images': memoryPaths.join(','),
+            'temp': this.temperature + '℃',
+            'formImages': formImages // 鸿蒙底层专属字段，专门用来传相册图片
+          };
+
+          let bindingData = formBindingData.createFormBindingData(formData);
+          await formProvider.updateForm(formId, bindingData);
+        }
+      } catch (updateErr) {
+        console.error('RecommendPage', '刷新卡片失败: ' + JSON.stringify(updateErr));
+      }
 
       promptAction.showToast({ message: '穿搭已选定并同步至桌面' });
-
-      // 3. 最后再返回
-      setTimeout(() => {
-        router.back();
-      }, 500);
+      setTimeout(() => { router.back(); }, 500);
 
     } catch (err) {
       console.error('ConfirmOutfitError', JSON.stringify(err));
-      router.back(); // 出错也返回，避免卡死
+      router.back();
     }
   }
 
   build() {
     Stack() {
-      Image($r('app.media.background1'))
+      Image(APP_WALLPAPERS[this.wallpaperIndex])
         .width('100%').height('100%').objectFit(ImageFit.Cover).opacity(0.4)
 
       Column() {

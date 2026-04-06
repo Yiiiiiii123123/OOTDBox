@@ -19,6 +19,25 @@ export class ClothingRepo {
   }
 
   /**
+   * 清空衣橱所有数据
+   */
+  async deleteAll(): Promise<boolean> {
+    try {
+      // 🌟 1. 构建操作谓词，传入你的表名（请确保 'Clothing' 是你真实的表名）
+      let predicates = new relationalStore.RdbPredicates('Clothing');
+
+      // 🌟 2. 执行删除。因为 predicates 没有加 any equalTo 条件，所以会删除整表
+      let deletedRows = await this.rdbStore.delete(predicates);
+
+      console.info('ClothingRepo', `成功清空衣橱，共删除 ${deletedRows} 条数据`);
+      return true;
+    } catch (err) {
+      console.error('ClothingRepo', '清空衣橱失败: ' + JSON.stringify(err));
+      return false; // 删除失败返回 false
+    }
+  }
+
+  /**
    * 🌟 新增：获取衣橱中的所有衣物
    * 返回值类型明确指定为 Promise<Clothing[]>，彻底解决 ArkTS 的 any 报错
    */

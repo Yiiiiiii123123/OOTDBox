@@ -1,6 +1,7 @@
 import { WeatherService } from '../service/WeatherService'
 import { router } from '@kit.ArkUI'
 import { City } from '../utils/CityList'
+import { APP_WALLPAPERS } from '../utils/BackgroundList';
 
 @Entry
 @Component
@@ -9,6 +10,7 @@ struct HomePage {
   @State weatherText: string = '加载中...'
   @State city: string = '厦门'
   @State cityCode: string = '350200'
+  @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
   @StorageLink('selectedCity') selectedCity: City | null = null
 
@@ -85,7 +87,7 @@ struct HomePage {
   build() {
     Stack() {
       // 背景图片
-      Image($r('app.media.background1'))
+      Image(APP_WALLPAPERS[this.wallpaperIndex])
         .width('100%')
         .height('100%')
         .objectFit(ImageFit.Cover)

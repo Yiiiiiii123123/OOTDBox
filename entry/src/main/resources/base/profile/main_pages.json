@@ -8,6 +8,8 @@
     "pages/AllClothesPage",
     "pages/ClothingDetailPage",
     "pages/PersonalPage",
-    "pages/FavoriteOutfitPage"
+    "pages/FavoriteOutfitPage",
+    "pages/DataAnalysisView",
+    "pages/SettingsView"
   ]
 }

@@ -1,28 +1,56 @@
-import { formBindingData, FormExtensionAbility, formInfo } from '@kit.FormKit';
+import { formBindingData, FormExtensionAbility, formInfo, formProvider } from '@kit.FormKit'; // 🌟 引入 formProvider
 import { Want } from '@kit.AbilityKit';
 import dataPreferences from '@ohos.data.preferences';
+import fs from '@ohos.file.fs'; // 🌟 必须引入文件系统
 
 export default class EntryFormAbility extends FormExtensionAbility {
   onAddForm(want: Want): formBindingData.FormBindingData {
-    // 1. 准备一个最基础的初始数据（防止读取失败或太慢）
+    let formId = want.parameters?.['ohos.extra.param.key.form_id'] as string;
+
     let formData: Record<string, string> = {
       'images': '',
       'temp': '--℃'
     };
 
-    // 2. 异步读取首选项（不使用 await，而使用 .then 回调）
     dataPreferences.getPreferences(this.context, 'outfit_storage').then((preferences) => {
-      return preferences.get('today_images', '');
-    }).then((value) => {
-      // 这里的 value 就是读取到的图片路径
-      console.info('FormAbility', '数据读取成功，准备更新卡片');
-      // 注意：这里的更新需要配合 formProvider.updateForm 使用，
-      // 因为 onAddForm 已经执行完了。
+      if (formId) {
+        preferences.putSync('bound_form_id', formId);
+        preferences.flush();
+      }
+
+      let images = preferences.getSync('today_images', '') as string;
+      let temp = preferences.getSync('today_temp', '--℃') as string;
+
+      // 🌟 初始化时，也要将持久化的沙箱路径转为内存共享！
+      if (images !== '') {
+        let imagePaths = images.split(',');
+        let memoryPaths: string[] = [];
+        let formImages: Record<string, number> = {};
+
+        for(let i = 0; i < imagePaths.length; i++) {
+          try {
+            let file = fs.openSync(imagePaths[i], fs.OpenMode.READ_ONLY);
+            let memKey = 'pic_' + i;
+            formImages[memKey] = file.fd;
+            memoryPaths.push('memory://' + memKey);
+          } catch(e) {
+            console.error('FormAbility', '无法读取图片');
+          }
+        }
+
+        let updateDataObj: Record<string, Object> = {
+          'images': memoryPaths.join(','),
+          'temp': temp,
+          'formImages': formImages
+        };
+
+        let updateData = formBindingData.createFormBindingData(updateDataObj);
+        formProvider.updateForm(formId, updateData);
+      }
     }).catch((err: Error) => {
       console.error('FormAbility', '读取失败: ' + err.message);
     });
 
-    // 3. 🌟 关键：立即返回初始绑定数据，让卡片先显示出来（哪怕是空状态）
     return formBindingData.createFormBindingData(formData);
   }
 

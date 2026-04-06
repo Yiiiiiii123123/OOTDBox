@@ -10,7 +10,10 @@ struct TodayOutfitCard {
     if (!this.images || this.images.trim() === '') {
       return [];
     }
-    return this.images.split(',');
+    // 🌟 必须加上这个 filter 过滤！屏蔽掉让系统崩溃的脏数据
+    return this.images.split(',').filter(item => {
+      return item && !item.includes('object Object') && item.trim() !== '';
+    });
   }
 
   build() {

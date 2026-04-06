@@ -4,11 +4,13 @@ import { ClothingService } from '../service/ClothingService'
 import router from '@ohos.router'
 // 🌟 引入配置与工具类
 import { ClothingUtils } from '../utils/ClothingUtils'
+import { APP_WALLPAPERS } from '../utils/BackgroundList';
 
 @Entry
 @Component
 struct AllClothesPage {
   @State clothingList: Clothing[] = []
+  @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
   private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
@@ -68,7 +70,7 @@ struct AllClothesPage {
   build() {
     Stack() {
       // 1. 背景层
-      Image($r('app.media.background1'))
+      Image(APP_WALLPAPERS[this.wallpaperIndex])
         .width('100%').height('100%').objectFit(ImageFit.Cover)
 
       Column() {

@@ -4,6 +4,7 @@ import { ClothingService } from '../service/ClothingService'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import router from '@ohos.router'
+import { APP_WALLPAPERS } from '../utils/BackgroundList'
 
 // 定义左侧侧边栏的 UI 分类配置 (包含 'all' 和 MainCategory)
 interface UICategory {
@@ -27,6 +28,8 @@ struct ClosetPage {
   @State clothingList: Clothing[] = []
   @State filteredList: Clothing[] = []
   @State selectedCategory: string = 'all' // 当前选中的一级分类
+  @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
+
 
   private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
@@ -103,7 +106,7 @@ struct ClosetPage {
   build() {
     Stack() {
       // 背景图片
-      Image($r('app.media.background1'))
+      Image(APP_WALLPAPERS[this.wallpaperIndex])
         .width('100%')
         .height('100%')
         .objectFit(ImageFit.Cover)
