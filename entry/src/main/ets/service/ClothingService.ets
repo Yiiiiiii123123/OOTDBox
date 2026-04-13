@@ -5,6 +5,11 @@ import { ClothingRepo} from '../repository/ClothingRepo';
 import { OutfitRepo } from '../repository/OutfitRepo';
 import { util } from '@kit.ArkTS';
 
+export interface OutfitViewData {
+  outfitId: string;        // 组合在数据库里的真实 ID
+  clothes: Clothing[];     // 这套组合里的衣服单品
+}
+
 export class ClothingService {
   private clothingRepo: ClothingRepo;
   private outfitRepo: OutfitRepo;
@@ -86,39 +91,38 @@ export class ClothingService {
   }
 
   /**
-   * 🌟 核心方法：获取所有收藏的搭配组合对象列表
-   * 返回值是一个二维数组：Array<Clothing[]>
+   * 替换原来的 getFavoriteOutfits 方法
+   * 返回值变成了包含 outfitId 和 clothes 的包装盒数组
    */
-  public async getFavoriteOutfits(): Promise<Array<Clothing[]>> {
-    const favoriteOutfits: Array<Clothing[]> = [];
+  public async getFavoriteOutfits(): Promise<Array<OutfitViewData>> {
+    const favoriteOutfits: Array<OutfitViewData> = [];
 
     try {
-      // 1. 从数据库拿到所有收藏的原始记录
       const resultSet = await this.outfitRepo.getFavoriteRecords();
 
       while (resultSet.goToNextRow()) {
-        // 拿到 ID 字符串，例如: "uuid-123,uuid-456"
+        // 🌟 关键：把组合的 id 拿出来，不要丢掉
+        const outfitId = resultSet.getString(resultSet.getColumnIndex('id'));
         const idString = resultSet.getString(resultSet.getColumnIndex('clothingIds'));
-        if (!idString) continue;
 
-        // 2. 将字符串拆解为 ID 数组
+        if (!idString || !outfitId) continue;
+
         const ids = idString.split(',');
-
-        // 3. 核心：通过这些 ID 去 Clothing 表里“捞”出完整的衣服对象
         const outfitItems: Clothing[] = [];
 
-        // 使用 Promise.all 并行查询，提高性能
         const fetchTasks = ids.map(id => this.clothingRepo.getById(id.trim()));
         const results = await Promise.all(fetchTasks);
 
-        // 过滤掉可能已经被删掉的衣服（null）
         results.forEach(item => {
           if (item) outfitItems.push(item);
         });
 
-        // 如果这套衣服里还有衣服，就加入大名单
         if (outfitItems.length > 0) {
-          favoriteOutfits.push(outfitItems);
+          // 🌟 关键：把 id 和衣服一起放进包装盒，返回给前端
+          favoriteOutfits.push({
+            outfitId: outfitId,
+            clothes: outfitItems
+          });
         }
       }
       resultSet.close();
@@ -127,6 +131,14 @@ export class ClothingService {
     }
 
     return favoriteOutfits;
+  }
+
+  /**
+   * 🌟 新增：直接调用 Repo 里的纯粹删除方法
+   */
+  public async deleteFavoriteOutfit(outfitId: string): Promise<boolean> {
+    const deletedRows = await this.outfitRepo.deleteOutfit(outfitId);
+    return deletedRows > 0;
   }
 
   /**

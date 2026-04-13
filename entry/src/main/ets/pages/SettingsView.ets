@@ -120,18 +120,33 @@ struct SettingsView {
   build() {
     Column() {
       // --- 顶部导航栏 ---
+      // --- 顶部导航栏 ---
       Row() {
-        Button('返回')
-          .width(60).height(32).backgroundColor('rgba(0,0,0,0.05)')
-          .fontColor('#333').fontSize(14).margin({ right: 12 })
+        Button('< 返回')
+          .backgroundColor(Color.Transparent)
+          .fontColor('#333')
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .padding({ left: 0 })
           .onClick(() => router.back())
 
+        Blank()
+
         Text('系统设置')
-          .fontSize(24).fontWeight(FontWeight.Bold).fontColor('#333')
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#333')
+
+        Blank()
+
+        Text('').width(60) // 占位，保证标题居中
       }
       .width('100%')
-      .padding({ left: 16, top: 20, bottom: 10, right: 16 })
-      .alignItems(VerticalAlign.Center)
+      .height(56)
+      .padding({ left: 20, right: 20 })
+      .backgroundColor(Color.White)
+      // 加上一条极细的底边框，让导航栏和下方内容有更好的层次感
+      .border({ width: { bottom: 0.5 }, color: '#F0F0F0' })
 
       Scroll() {
         Column({ space: 24 }) {
@@ -244,12 +259,12 @@ struct SettingsView {
 
       Column() {
         this.buildSettingRow('意见反馈', '', true, () => {
-          promptAction.showToast({ message: '感谢您的反馈！' });
+          router.pushUrl({ url: 'pages/FeedbackView' });
         })
         Divider().color('#F0F0F0').margin({ left: 16, right: 16 })
 
         this.buildSettingRow('隐私政策', '', true, () => {
-          promptAction.showToast({ message: '正在打开隐私政策...' });
+          router.pushUrl({ url: 'pages/PrivacyPolicyView' })
         })
         Divider().color('#F0F0F0').margin({ left: 16, right: 16 })
 

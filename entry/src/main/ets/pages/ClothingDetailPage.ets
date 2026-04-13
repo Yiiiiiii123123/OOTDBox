@@ -2,7 +2,7 @@ import router from '@ohos.router';
 import { Clothing } from '../model/Clothing';
 import { ClothingService } from '../service/ClothingService';
 import { ClothingRepo } from '../repository/ClothingRepo'; // 🌟 引入 Repo
-import { ClothingUtils } from '../utils/ClothingUtils';   // 🌟 引入工具类
+import { ClothingUtils } from '../utils/ClothingConfig';   // 🌟 引入工具类
 
 @Entry
 @Component

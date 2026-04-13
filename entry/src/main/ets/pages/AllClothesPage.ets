@@ -3,7 +3,7 @@ import { ClothingRepo } from '../repository/ClothingRepo'
 import { ClothingService } from '../service/ClothingService'
 import router from '@ohos.router'
 // 🌟 引入配置与工具类
-import { ClothingUtils } from '../utils/ClothingUtils'
+import { ClothingUtils } from '../utils/ClothingConfig'
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
 
 @Entry
@@ -118,7 +118,7 @@ struct AllClothesPage {
                       Text('|').fontColor('#EEE').fontSize(12)
 
                       // 保暖指数
-                      Text(`🔥 指数 ${item.warmthIndex}`).fontSize(13).fontColor('#666')
+                      //Text(`🔥 指数 ${item.warmthIndex}`).fontSize(13).fontColor('#666')
                     }
                   }
                   .layoutWeight(1).alignItems(HorizontalAlign.Start)

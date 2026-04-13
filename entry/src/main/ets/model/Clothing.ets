@@ -17,48 +17,74 @@ export enum MainCategory {
  * 扩展说明：后期新增衣服种类，请优先在此处添加枚举值
  */
 export enum SubCategory {
-  // --- 上装类 ---
-  T_SHIRT = 't_shirt',       // T恤
-  SHIRT = 'shirt',           // 衬衫
-  SWEATER = 'sweater',       // 毛衣/卫衣
+  // 1. 上装
+  T_SHIRT = 't_shirt',//T恤
+  SHIRT = 'shirt',//衬衫
+  POLO = 'polo',//Polo衫
+  SWEATER = 'sweater',//毛衣
+  HOODIE = 'hoodie',//卫衣
+  CAMISOLE = 'camisole',//吊带/背心
+  BASE_SHIRT = 'base_shirt',//打底衫
 
-  // --- 下装类 ---
-  JEANS = 'jeans',           // 牛仔裤
-  SHORTS = 'shorts',         // 短裤
-  CASUAL_PANTS = 'casual_pants', // 休闲裤
-  SKIRT = 'skirt',           // 半身裙
+  // 2. 下装
+  JEANS = 'jeans',//牛仔裤
+  CASUAL_PANTS = 'casual_pants',//休闲裤
+  SUIT_PANTS = 'suit_pants',//西装裤
+  SWEATPANTS = 'sweatpants',//运动裤
+  SHORTS = 'shorts',//短裤
+  SKIRT = 'skirt',//半身裙
 
-  // --- 连体类 ---
-  DRESS = 'dress',           // 连衣裙
-  JUMPSUIT = 'jumpsuit',     // 连体裤
+  // 3. 外套
+  JACKET = 'jacket',//短外套 / 夹克
+  BLAZER = 'blazer',//西装外套
+  TRENCH_COAT = 'trench_coat',//风衣
+  COAT = 'coat',//大衣
+  DOWN_JACKET = 'down_jacket',//羽绒服
+  COTTON_JACKET = 'cotton_jacket',//棉服
+  VEST = 'vest',//马甲
+  SUN_PROTECTIVE = 'sun_protective',//防晒衣
+  STORM_JACKET = 'storm_jacket',//冲锋衣
 
-  // --- 外套类 ---
-  JACKET = 'jacket',         // 夹克
-  COAT = 'coat',             // 大衣
-  DOWN_JACKET = 'down_jacket', // 羽绒服
+  // 4. 连体
+  DRESS = 'dress',//连衣裙
+  JUMPSUIT = 'jumpsuit',//连体裤
+  SUIT = 'suit',//套装
 
-  // --- 鞋子类 ---
-  SNEAKERS = 'sneakers',     // 运动鞋
-  BOOTS = 'boots',           // 靴子
+  // 5. 鞋子
+  SNEAKERS = 'sneakers',//运动鞋
+  CASUAL_SHOES = 'casual_shoes',//休闲鞋
+  LEATHER_SHOES = 'leather_shoes',//皮鞋
+  BOOTS = 'boots',//靴子
+  HIGH_HEELS = 'high_heels',//高跟鞋
+  SANDALS = 'sandals',//凉鞋
 
-  // --- 配饰类 ---
-  SCARF = 'scarf',           // 围巾
-  HAT = 'hat'                // 帽子
+  // 6. 配饰
+  JEWELRY = 'jewelry',//首饰
+  BAG = 'bag',//包包
+  HAT = 'hat',//帽子
+  SCARF = 'scarf',//围巾/披肩
+  GLASSES = 'glasses',//眼镜/墨镜
+  BELT = 'belt'//腰带
 }
 
 /**
- * 3. 颜色枚举 (保持规范，方便后续的色彩搭配算法)
+ * 基础色系枚举 (用于算法推荐、标签分类)
  */
 export enum ClothingColor {
-  BLACK = 'black',
-  WHITE = 'white',
-  GRAY = 'gray',
-  NAVY = 'navy',
-  KHAKI = 'khaki',
-  RED = 'red',
-  BLUE = 'blue',
-  PINK = 'pink'
-  // 扩展说明：可根据前端 UI 的色块选择器继续丰富
+  BLACK = 'black',     // 黑色
+  WHITE = 'white',     // 白色
+  GRAY = 'gray',       // 灰色
+  RED = 'red',         // 红色
+  PINK = 'pink',       // 粉色
+  ORANGE = 'orange',   // 橙色 (新增)
+  YELLOW = 'yellow',   // 黄色 (新增)
+  KHAKI = 'khaki',     // 卡其/米色
+  BROWN = 'brown',     // 棕色/咖啡色 (新增)
+  GREEN = 'green',     // 绿色 (新增)
+  CYAN = 'cyan',       // 青色/水蓝色 (新增)
+  BLUE = 'blue',       // 蓝色
+  NAVY = 'navy',       // 藏青/深蓝
+  PURPLE = 'purple'    // 紫色 (新增)
 }
 
 /**
@@ -67,33 +93,54 @@ export enum ClothingColor {
  * 作用：录入衣服时，只要知道它是“T恤”，系统瞬间查字典就知道它是“上装”
  */
 export const SubToMainCategoryMap: Record<SubCategory, MainCategory> = {
-  // 上装映射
+  // 1. 上装映射
   [SubCategory.T_SHIRT]: MainCategory.TOP,
   [SubCategory.SHIRT]: MainCategory.TOP,
+  [SubCategory.POLO]: MainCategory.TOP,
   [SubCategory.SWEATER]: MainCategory.TOP,
+  [SubCategory.HOODIE]: MainCategory.TOP,
+  [SubCategory.CAMISOLE]: MainCategory.TOP,
+  [SubCategory.BASE_SHIRT]: MainCategory.TOP,
 
-  // 下装映射
+  // 2. 下装映射
   [SubCategory.JEANS]: MainCategory.BOTTOM,
-  [SubCategory.SHORTS]: MainCategory.BOTTOM,
   [SubCategory.CASUAL_PANTS]: MainCategory.BOTTOM,
+  [SubCategory.SUIT_PANTS]: MainCategory.BOTTOM,
+  [SubCategory.SWEATPANTS]: MainCategory.BOTTOM,
+  [SubCategory.SHORTS]: MainCategory.BOTTOM,
   [SubCategory.SKIRT]: MainCategory.BOTTOM,
 
-  // 连体映射
-  [SubCategory.DRESS]: MainCategory.ONE_PIECE,
-  [SubCategory.JUMPSUIT]: MainCategory.ONE_PIECE,
-
-  // 外套映射
+  // 3. 外套映射
   [SubCategory.JACKET]: MainCategory.OUTERWEAR,
+  [SubCategory.BLAZER]: MainCategory.OUTERWEAR,
+  [SubCategory.TRENCH_COAT]: MainCategory.OUTERWEAR,
   [SubCategory.COAT]: MainCategory.OUTERWEAR,
   [SubCategory.DOWN_JACKET]: MainCategory.OUTERWEAR,
+  [SubCategory.COTTON_JACKET]: MainCategory.OUTERWEAR,
+  [SubCategory.VEST]: MainCategory.OUTERWEAR,
+  [SubCategory.SUN_PROTECTIVE]: MainCategory.OUTERWEAR,
+  [SubCategory.STORM_JACKET]: MainCategory.OUTERWEAR,
 
-  // 鞋子映射
+  // 4. 连体映射
+  [SubCategory.DRESS]: MainCategory.ONE_PIECE,
+  [SubCategory.JUMPSUIT]: MainCategory.ONE_PIECE,
+  [SubCategory.SUIT]: MainCategory.ONE_PIECE,
+
+  // 5. 鞋子映射
   [SubCategory.SNEAKERS]: MainCategory.SHOES,
+  [SubCategory.CASUAL_SHOES]: MainCategory.SHOES,
+  [SubCategory.LEATHER_SHOES]: MainCategory.SHOES,
   [SubCategory.BOOTS]: MainCategory.SHOES,
+  [SubCategory.HIGH_HEELS]: MainCategory.SHOES,
+  [SubCategory.SANDALS]: MainCategory.SHOES,
 
-  // 配饰映射
-  [SubCategory.SCARF]: MainCategory.ACCESSORY,
+  // 6. 配饰映射
+  [SubCategory.JEWELRY]: MainCategory.ACCESSORY,
+  [SubCategory.BAG]: MainCategory.ACCESSORY,
   [SubCategory.HAT]: MainCategory.ACCESSORY,
+  [SubCategory.SCARF]: MainCategory.ACCESSORY,
+  [SubCategory.GLASSES]: MainCategory.ACCESSORY,
+  [SubCategory.BELT]: MainCategory.ACCESSORY
 };
 
 /**

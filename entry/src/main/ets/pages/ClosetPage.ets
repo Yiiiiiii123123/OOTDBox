@@ -5,6 +5,7 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import router from '@ohos.router'
 import { APP_WALLPAPERS } from '../utils/BackgroundList'
+import { ClothingUtils } from '../utils/ClothingConfig'
 
 // 定义左侧侧边栏的 UI 分类配置 (包含 'all' 和 MainCategory)
 interface UICategory {
@@ -34,19 +35,6 @@ struct ClosetPage {
   private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
   private categories: UICategory[] = UI_CATEGORY_LIST
-
-  // --- 辅助函数：将英文二级分类转为中文用于界面展示 ---
-  private getSubCategoryLabel(subCategory: string): string {
-    const labelMap: Record<string, string> = {
-      't_shirt': 'T恤', 'shirt': '衬衫', 'sweater': '毛衣/卫衣',
-      'jeans': '牛仔裤', 'shorts': '短裤', 'casual_pants': '休闲裤', 'skirt': '半身裙',
-      'dress': '连衣裙', 'jumpsuit': '连体裤',
-      'jacket': '夹克', 'coat': '大衣', 'down_jacket': '羽绒服',
-      'sneakers': '运动鞋', 'boots': '靴子',
-      'scarf': '围巾', 'hat': '帽子'
-    };
-    return labelMap[subCategory] || subCategory;
-  }
 
   aboutToAppear() {
     this.loadData()
@@ -133,7 +121,7 @@ struct ClosetPage {
             })
         }
         .width('100%')
-        .padding({ left: 20, right: 20, top: 32, bottom: 12 })
+        .padding({ left: 20, right: 20, top: 32, bottom: 20 })
 
         // 圆角矩形容器
         Column() {
@@ -224,7 +212,7 @@ struct ClosetPage {
                   .justifyContent(FlexAlign.Center)
                 }
 
-                Text(this.getSubCategoryLabel(item.subCategory))
+                Text(ClothingUtils.getLabelBySubCategory(item.subCategory))
                   .fontSize(12)
                   .fontColor('#666')
                   .margin({ top: 4 })

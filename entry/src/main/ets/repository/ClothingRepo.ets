@@ -105,7 +105,8 @@ export class ClothingRepo {
       'subCategory': item.subCategory,
       'warmthIndex': item.warmthIndex,
       'color': item.color,
-      // wearCount 和 lastWornDate 通常在详情页编辑时不修改，保持原样
+      'wearCount': item.wearCount,
+      'lastWornDate': item.lastWornDate
     };
 
     let predicates = new relationalStore.RdbPredicates('Clothing');

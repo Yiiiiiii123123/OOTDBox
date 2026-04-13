@@ -3,7 +3,7 @@ import { ClothingRepo } from '../repository/ClothingRepo';
 import { RecommendService } from '../service/RecommendService';
 import { ClothingService } from '../service/ClothingService';
 import { WeatherService } from '../service/WeatherService';
-import { ClothingUtils } from '../utils/ClothingUtils';
+import { ClothingUtils } from '../utils/ClothingConfig';
 import { City } from '../utils/CityList';
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
@@ -120,59 +120,47 @@ struct RecommendPage {
     }
   }
 
-  async confirmOutfit() {
-    if (this.outfit.length === 0) return;
-
+  /**
+   * 🌟 确认穿这套衣服的打卡逻辑
+   * @param selectedOutfit 包含当前搭配中所有衣服单品的数组
+   */
+  async confirmOutfit(selectedOutfit: Clothing[]) {
     try {
-      const preferences = await dataPreferences.getPreferences(getContext(this), 'outfit_storage');
-      const imgPaths = this.outfit.map(item => item.imageUri).join(',');
-
-      // 1. 先把沙箱路径存起来，供以后使用
-      await preferences.put('today_images', imgPaths);
-      await preferences.put('today_temp', this.temperature + '℃');
-      await preferences.flush();
-
-      // 2. 🌟 核心：将私有图片转为卡片能读的共享内存
-      try {
-        let formId = await preferences.get('bound_form_id', '') as string;
-        if (formId && formId !== '') {
-
-          let memoryPaths: string[] = [];
-          let formImages: Record<string, number> = {};
-
-          // 打开衣服图片，获取文件描述符(fd)
-          for (let i = 0; i < this.outfit.length; i++) {
-            let uri = this.outfit[i].imageUri;
-            try {
-              let file = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-              let memKey = 'pic_' + i;
-              formImages[memKey] = file.fd;
-              memoryPaths.push('memory://' + memKey); // 转换为 memory:// 路径
-            } catch (fileErr) {
-              console.error('RecommendPage', '图片打开失败: ' + uri);
-            }
-          }
-
-          // 🌟 注意这里的 Record<string, Object>，允许放入 formImages
-          let formData: Record<string, Object> = {
-            'images': memoryPaths.join(','),
-            'temp': this.temperature + '℃',
-            'formImages': formImages // 鸿蒙底层专属字段，专门用来传相册图片
-          };
-
-          let bindingData = formBindingData.createFormBindingData(formData);
-          await formProvider.updateForm(formId, bindingData);
-        }
-      } catch (updateErr) {
-        console.error('RecommendPage', '刷新卡片失败: ' + JSON.stringify(updateErr));
+      // 1. 基础校验
+      if (!selectedOutfit || selectedOutfit.length === 0) {
+        promptAction.showToast({ message: '当前搭配为空哦~' });
+        return;
       }
 
-      promptAction.showToast({ message: '穿搭已选定并同步至桌面' });
-      setTimeout(() => { router.back(); }, 500);
+      // 给用户一个正在处理的视觉反馈
+      promptAction.showToast({ message: 'OOTD 记录中...' });
 
-    } catch (err) {
-      console.error('ConfirmOutfitError', JSON.stringify(err));
-      router.back();
+      // 2. 遍历当前穿搭中的每一件衣服，更新其穿着次数
+      for (let i = 0; i < selectedOutfit.length; i++) {
+        let item = selectedOutfit[i];
+
+        // 🌟 核心：将穿着次数 + 1
+        // 使用 (item.wearCount || 0) 是为了防止旧数据没有这个字段时报错 NaN
+        item.wearCount = (item.wearCount || 0) + 1;
+
+        // 进阶拓展：如果你以后想做更精准的“吃灰预警”，这里可以加一行记录最后一次穿着的时间戳
+         item.lastWornDate = new Date().getTime();
+
+        // 3. 调用 Service 层更新到本地数据库
+        await this.clothingService.updateClothing(item);
+      }
+
+      // 4. 成功反馈与闭环跳转
+      promptAction.showToast({ message: '打卡成功！衣服数据已更新 ✨' });
+
+      // 延迟 500ms 后返回上一页或者跳转回主页
+      setTimeout(() => {
+        router.back();
+      }, 500);
+
+    } catch (error) {
+      console.error('更新穿搭次数失败:', error);
+      promptAction.showToast({ message: '打卡失败，请重试' });
     }
   }
 
@@ -237,7 +225,7 @@ struct RecommendPage {
               .backgroundColor('#007AFF').fontColor(Color.White)
               .onClick(() => {
                 // 🌟 改为调用这个异步方法
-                this.confirmOutfit();
+                this.confirmOutfit(this.outfit);
               })
           }
           .width('90%').margin({ bottom: 40 })

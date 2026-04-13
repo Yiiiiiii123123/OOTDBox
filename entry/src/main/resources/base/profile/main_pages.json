@@ -10,6 +10,8 @@
     "pages/PersonalPage",
     "pages/FavoriteOutfitPage",
     "pages/DataAnalysisView",
-    "pages/SettingsView"
+    "pages/SettingsView",
+    "pages/PrivacyPolicyView",
+    "pages/FeedbackView"
   ]
 }
