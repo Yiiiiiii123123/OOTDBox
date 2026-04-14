@@ -2,18 +2,23 @@ import { Clothing } from '../model/Clothing'
 import { ClothingRepo } from '../repository/ClothingRepo'
 import { ClothingService } from '../service/ClothingService'
 import router from '@ohos.router'
+import promptAction from '@ohos.promptAction' // 🌟 引入 promptAction 用于轻提示
 // 🌟 引入配置与工具类
 import { ClothingUtils } from '../utils/ClothingConfig'
-import { APP_WALLPAPERS } from '../utils/BackgroundList';
+import { APP_WALLPAPERS } from '../utils/BackgroundList'
+import { DataMigrationService } from '../service/DataMigrationService'
+import common from '@ohos.app.ability.common'
 
 @Entry
 @Component
 struct AllClothesPage {
+
   @State clothingList: Clothing[] = []
   @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
   private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
+  private migrationService: DataMigrationService = new DataMigrationService()
 
   // 页面首次挂载
   aboutToAppear() {
@@ -67,6 +72,35 @@ struct AllClothesPage {
     })
   }
 
+  async handleExportData() {
+    // 拿到当前页面的上下文，必须要有它才能读写沙盒！
+    const context = getContext(this) as common.UIAbilityContext;
+    promptAction.showToast({ message: '正在打包数据...' });
+
+    const success = await this.migrationService.exportData(context);
+    if (success) {
+      promptAction.showToast({ message: '导出成功！已保存到手机' });
+    } else {
+      promptAction.showToast({ message: '导出失败或取消' });
+    }
+  }
+
+  async handleImportData() {
+    const context = getContext(this) as common.UIAbilityContext;
+    promptAction.showToast({ message: '正在解析数据包...' });
+
+    // 🌟 接收返回的具体信息
+    const result = await this.migrationService.importData(context);
+
+    // 把底层的具体原因或成功提示弹出来！
+    promptAction.showToast({ message: result.msg });
+
+    // 如果成功了，就刷新页面列表
+    if (result.success) {
+      this.loadData();
+    }
+  }
+
   build() {
     Stack() {
       // 1. 背景层
@@ -85,7 +119,31 @@ struct AllClothesPage {
           Text('我的衣橱').fontSize(22).fontWeight(FontWeight.Bold).fontColor('#333')
           Blank()
 
-          Row().width(70) // 占位保持标题居中
+          // 🌟 核心修改：将原来的空 Row 换成了包含图片和弹出菜单的容器
+          // 保持宽度 70，是为了和左侧的“返回”按钮对称，让“我的衣橱”绝对居中
+          Row() {
+            Image($r('app.media.icon_database')) // 确保你的图片在这个路径下
+              .width(28)
+              .height(28)
+              .objectFit(ImageFit.Contain)
+                // 绑定系统原生下拉菜单
+              .bindMenu([
+                {
+                  value: '导出衣橱数据',
+                  action: () => {
+                    this.handleExportData()
+                  }
+                },
+                {
+                  value: '载入衣橱数据',
+                  action: () => {
+                    this.handleImportData()
+                  }
+                }
+              ])
+          }
+          .width(70)
+          .justifyContent(FlexAlign.End) // 让图标靠最右边显示
         }
         .width('100%').padding({ left: 16, right: 16, top: 32, bottom: 32 })
 
@@ -117,8 +175,6 @@ struct AllClothesPage {
 
                       Text('|').fontColor('#EEE').fontSize(12)
 
-                      // 保暖指数
-                      //Text(`🔥 指数 ${item.warmthIndex}`).fontSize(13).fontColor('#666')
                     }
                   }
                   .layoutWeight(1).alignItems(HorizontalAlign.Start)
@@ -139,7 +195,7 @@ struct AllClothesPage {
                 .width('100%').padding(12).backgroundColor('rgba(255,255,255,0.95)')
                 .borderRadius(15).shadow({ radius: 4, color: '#10000000' })
               }
-            }, (item: Clothing) => item.id + item.wearCount.toString()) // 🌟 Key 绑定 wearCount 强制内容更新
+            }, (item: Clothing) => item.id + item.wearCount.toString() + item.imageUri) // 🌟 Key 绑定 wearCount 强制内容更新
           }
           .width('100%').layoutWeight(1).padding({ left: 16, right: 16 })
         }
