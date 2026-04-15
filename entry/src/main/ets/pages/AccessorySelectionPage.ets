@@ -171,6 +171,8 @@ struct AccessorySelectionPage {
       item.lastWornDate = new Date().getTime();
       await this.clothingService.updateClothing(item);
     }
+    // 🌟🌟🌟 新增这行代码：把最终穿搭发给全系统！首页一听到就更新了！
+    AppStorage.setOrCreate('todayOutfit', finalOutfit);
 
     promptAction.showToast({ message: '打卡成功！你今天真好看 ✨' });
     setTimeout(() => { router.back({ url: 'pages/HomePage' }) }, 800); // 彻底回到主页
