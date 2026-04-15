@@ -97,10 +97,6 @@ struct SettingsView {
       let success = await this.repo.deleteAll();
 
       if (success) {
-        // 2. (可选优化) 顺手把桌面卡片的穿搭首选项也清空，防止出现“幽灵衣服”
-        //let preferences = await dataPreferences.getPreferences(this.context, 'outfit_storage');
-        //await preferences.clear();
-        //await preferences.flush();
 
         // 3. 顺手触发一下我们刚才写的清缓存方法，释放物理空间
         this.clearAppCache();
@@ -115,11 +111,60 @@ struct SettingsView {
     }
   }
 
+  // 5. 🌟 新增：清除穿着记录的弹窗警告
+  showResetHistoryDialog() {
+    AlertDialog.show({
+      title: '提示',
+      message: '确定要清除所有衣物的历史穿着数据吗？\n此操作会将衣物穿着次数与时间清零，从而重置算法的推荐偏好。',
+      autoCancel: true,
+      alignment: DialogAlignment.Center,
+      primaryButton: {
+        value: '取消',
+        fontColor: '#999',
+        action: () => {}
+      },
+      secondaryButton: {
+        value: '确定清除',
+        fontColor: '#007AFF', // 使用常规强调色，因为这不是毁灭性操作
+        action: () => {
+          this.executeResetHistory();
+        }
+      }
+    });
+  }
+
+  // 6. 🌟 新增：执行清除穿着记录
+  async executeResetHistory() {
+    try {
+      // 获取所有衣服
+      let clothes = await this.repo.getAll();
+      if (!clothes || clothes.length === 0) {
+        promptAction.showToast({ message: '衣橱空空如也，无需清除' });
+        return;
+      }
+
+      let updateCount = 0;
+      for (let item of clothes) {
+        // 只要穿过，就重置数据并更新到数据库
+        if (item.wearCount > 0 || item.lastWornDate > 0) {
+          item.wearCount = 0;
+          item.lastWornDate = 0;
+          await this.repo.update(item);
+          updateCount++;
+        }
+      }
+
+      promptAction.showToast({ message: `✨ 成功重置 ${updateCount} 件衣物的推荐偏好` });
+    } catch (e) {
+      console.error('SettingsView', '重置穿着记录异常: ' + JSON.stringify(e));
+      promptAction.showToast({ message: '重置异常，请重试' });
+    }
+  }
+
   // ================= UI 渲染 =================
 
   build() {
     Column() {
-      // --- 顶部导航栏 ---
       // --- 顶部导航栏 ---
       Row() {
         Button('< 返回')
@@ -237,6 +282,13 @@ struct SettingsView {
         this.buildSettingRow('清理缓存', this.cacheSize, true, () => {
           // 调用真正的清理缓存逻辑
           this.clearAppCache();
+        })
+
+        Divider().color('#F0F0F0').margin({ left: 16, right: 16 })
+
+        // 🌟 新增：清除穿着记录项
+        this.buildSettingRow('清除历史穿着记录', '', false, () => {
+          this.showResetHistoryDialog();
         })
 
         Divider().color('#F0F0F0').margin({ left: 16, right: 16 })

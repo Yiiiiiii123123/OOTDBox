@@ -12,6 +12,7 @@ import formProvider from '@ohos.app.form.formProvider';
 import formBindingData from '@ohos.app.form.formBindingData';
 import fs from '@ohos.file.fs'; // 🌟 引入文件系统，用于读取相册图片
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
+import { RecommendationService } from '../service/RecommendationService';
 
 
 @Entry
@@ -35,7 +36,7 @@ struct RecommendPage {
 
   private repo: ClothingRepo = new ClothingRepo()
   private weatherService: WeatherService = new WeatherService()
-  private recommendService: RecommendService = new RecommendService()
+  private recommendService: RecommendationService = new RecommendationService()
   private clothingService: ClothingService = new ClothingService()
   private isUpdatingWeather: boolean = false
 
@@ -92,14 +93,39 @@ struct RecommendPage {
     this.clothingList = list ?? [];
   }
 
+  // 🌟 将生成搭配方法升级为异步调用新算法
   async generateOutfit() {
-    if (this.clothingList.length === 0) return;
+    // 检查是否有衣服，如果没有直接返回
+    if (!this.clothingList || this.clothingList.length === 0) {
+      promptAction.showToast({ message: '衣橱太少啦，无法推荐~' });
+      return;
+    }
+
     this.isGenerating = true;
     this.isFavorited = false; // 换一套时重置状态
 
-    setTimeout(() => {
-      this.outfit = this.recommendService.generate(this.temperature, this.clothingList);
-      this.isGenerating = false;
+    // 稍微延迟一下，给用户一个“正在思考算法”的视觉缓冲，体验更好
+    setTimeout(async () => {
+      try {
+        // 🌟 调用新的核心推荐算法
+        const result = await this.recommendService.getBestRecommendation(this.temperature);
+
+        if (result && result.clothes.length > 0) {
+          // 将算法计算出的实体衣服数组赋值给 UI 绑定的 outfit 变量
+          this.outfit = result.clothes;
+          // (可选) 如果你需要马上就把这个 combination 存库，也可以在这里操作
+          // this.currentCombination = result.combination;
+        } else {
+          // 如果算法返回 null，说明找不齐必需的衣服（比如没鞋子）
+          this.outfit = [];
+          promptAction.showToast({ message: '当前温度下找不到合适的搭配，去买新衣服吧！' });
+        }
+      } catch (error) {
+        console.error('推荐算法执行失败:', error);
+        promptAction.showToast({ message: '推荐过程出错' });
+      } finally {
+        this.isGenerating = false;
+      }
     }, 600);
   }
 
