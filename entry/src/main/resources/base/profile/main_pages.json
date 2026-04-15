@@ -12,6 +12,7 @@
     "pages/DataAnalysisView",
     "pages/SettingsView",
     "pages/PrivacyPolicyView",
-    "pages/FeedbackView"
+    "pages/FeedbackView",
+    "pages/AccessorySelectionPage"
   ]
 }

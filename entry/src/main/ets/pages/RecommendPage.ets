@@ -246,12 +246,18 @@ struct RecommendPage {
               .backgroundColor('rgba(255,255,255,0.8)').fontColor('#333')
               .onClick(() => this.generateOutfit())
 
-            Button('就穿这套')
+            Button('下一步')
               .layoutWeight(1).height(50).borderRadius(25)
               .backgroundColor('#007AFF').fontColor(Color.White)
               .onClick(() => {
-                // 🌟 改为调用这个异步方法
-                this.confirmOutfit(this.outfit);
+                // 🌟 将生成的整套衣服和温度，作为参数传递给饰品选择页
+                router.pushUrl({
+                  url: 'pages/AccessorySelectionPage',
+                  params: {
+                    baseOutfit: this.outfit,
+                    temperature: this.temperature
+                  }
+                })
               })
           }
           .width('90%').margin({ bottom: 40 })
