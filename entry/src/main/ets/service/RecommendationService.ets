@@ -1,5 +1,5 @@
 import { Clothing } from '../model/Clothing';
-import { OutfitCombination } from '../model/Outfit'; // 引入你的原生模型
+import { Outfit } from '../model/Outfit'; // 引入你的原生模型
 import { ClothingRepo } from '../repository/ClothingRepo';
 import { ColorMatchUtil } from '../utils/ColorMatchUtil';
 import { util } from '@kit.ArkTS';
@@ -11,10 +11,10 @@ interface CandidateOutfit {
 }
 
 export class RecommendationResult {
-  combination: OutfitCombination;
+  combination: Outfit;
   clothes: Clothing[];
 
-  constructor(combination: OutfitCombination, clothes: Clothing[]) {
+  constructor(combination: Outfit, clothes: Clothing[]) {
     this.combination = combination;
     this.clothes = clothes;
   }
@@ -49,9 +49,9 @@ export class RecommendationService {
 
     // 🌟 将胜出的衣服数组，转换为你原有的 OutfitCombination 模型
     // 这里使用鸿蒙 util 生成唯一 UUID 作为组合 ID
-    let uuid = util.generateRandomUUID();
+    //let uuid = util.generateRandomUUID();
     let clothingIds = bestCandidate.items.map(c => c.id);
-    let winningCombination = new OutfitCombination(uuid, clothingIds, temperature);
+    let winningCombination = new Outfit(clothingIds, temperature);
 
     return new RecommendationResult(winningCombination, bestCandidate.items);// 顺便返回实体数组，方便 UI 页面直接渲染图片
 

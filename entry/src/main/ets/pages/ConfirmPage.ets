@@ -1,8 +1,8 @@
 import router from '@ohos.router';
 import util from '@ohos.util';
-import { Clothing, ClothingColor } from '../model/Clothing';
+import { Clothing } from '../model/Clothing';
 import { ClothingService } from '../service/ClothingService';
-import { COLOR_OPTIONS, WARMTH_OPTIONS, CATEGORY_UI_DATA } from '../utils/ClothingConfig';
+import { COLOR_OPTIONS, WARMTH_OPTIONS, CATEGORY_UI_DATA, ClothingColor } from '../utils/ClothingConfig';
 import { ClothingUtils } from '../utils/ClothingConfig';
 import { ColorOption, WarmthOption } from '../utils/ClothingConfig';
 

@@ -52,7 +52,7 @@ struct FavoriteOutfitPage {
     }).then(async (data) => {
       if (data.index === 1) {
         this.favoriteOutfits.splice(index, 1);
-        await this.service.deleteFavoriteOutfit(viewData.outfitId);
+        await this.service.deleteFavoriteOutfit(viewData.outfit.id);
         promptAction.showToast({ message: '已移除收藏' });
       }
     });

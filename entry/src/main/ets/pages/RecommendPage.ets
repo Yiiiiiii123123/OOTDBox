@@ -1,16 +1,11 @@
-import { Clothing, MainCategory } from '../model/Clothing';
+import { Clothing } from '../model/Clothing';
 import { ClothingRepo } from '../repository/ClothingRepo';
-import { RecommendService } from '../service/RecommendService';
 import { ClothingService } from '../service/ClothingService';
 import { WeatherService } from '../service/WeatherService';
 import { ClothingUtils } from '../utils/ClothingConfig';
 import { City } from '../utils/CityList';
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
-import dataPreferences from '@ohos.data.preferences'; // 🌟 用于小组件数据共享
-import formProvider from '@ohos.app.form.formProvider';
-import formBindingData from '@ohos.app.form.formBindingData';
-import fs from '@ohos.file.fs'; // 🌟 引入文件系统，用于读取相册图片
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
 import { RecommendationService } from '../service/RecommendationService';
 
@@ -135,7 +130,7 @@ struct RecommendPage {
 
     if (!this.isFavorited) {
       // 🌟 传入 outfit 和当前的气温 temperature
-      const success = await this.clothingService.saveFavoriteOutfit(this.outfit, this.temperature);
+      const success = await this.clothingService.saveToFavorite(this.outfit, this.temperature);
 
       if (success) {
         this.isFavorited = true;

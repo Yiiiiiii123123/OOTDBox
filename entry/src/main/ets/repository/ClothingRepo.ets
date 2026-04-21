@@ -1,19 +1,17 @@
 import relationalStore from '@ohos.data.relationalStore';
 import { RdbManager } from '../database/RdbManager';
-import { Clothing, ClothingColor, SubCategory } from '../model/Clothing';
+import { Clothing } from '../model/Clothing';
+import { ClothingColor, SubCategory } from '../utils/ClothingConfig';
 
 export class ClothingRepo {
-  private rdbStore: relationalStore.RdbStore;
-
-  // 1. 构造函数不再需要传参
-  constructor() {
-    // 2. 自己去管家那里拿数据库实例
-    this.rdbStore = RdbManager.getInstance().getStore();
+  //使用 Getter 懒加载，只有在真正执行增删改查时才去拿数据
+  private get rdbStore(): relationalStore.RdbStore {
+    return RdbManager.getInstance().getStore();
   }
 
   // 纯粹的删除单品
   public async delete(clothingId: string): Promise<number> {
-    let predicates = new relationalStore.RdbPredicates('Clothing');
+    let predicates = new relationalStore.RdbPredicates('Clothing');//数据库条件构建器
     predicates.equalTo('id', clothingId);
     return await this.rdbStore.delete(predicates);
   }
@@ -21,12 +19,12 @@ export class ClothingRepo {
   /**
    * 清空衣橱所有数据
    */
-  async deleteAll(): Promise<boolean> {
+  public async deleteAll(): Promise<boolean> {
     try {
-      // 🌟 1. 构建操作谓词，传入你的表名（请确保 'Clothing' 是你真实的表名）
+      // 1. 构建操作谓词，传入表名
       let predicates = new relationalStore.RdbPredicates('Clothing');
 
-      // 🌟 2. 执行删除。因为 predicates 没有加 any equalTo 条件，所以会删除整表
+      // 2. 执行删除。因为 predicates 没有加 any equalTo 条件，所以会删除整表
       let deletedRows = await this.rdbStore.delete(predicates);
 
       console.info('ClothingRepo', `成功清空衣橱，共删除 ${deletedRows} 条数据`);
@@ -38,8 +36,8 @@ export class ClothingRepo {
   }
 
   /**
-   * 🌟 新增：获取衣橱中的所有衣物
-   * 返回值类型明确指定为 Promise<Clothing[]>，彻底解决 ArkTS 的 any 报错
+   * 获取衣橱中的所有衣物
+   * 返回值类型明确指定为 Promise<Clothing[]>
    */
   public async getAll(): Promise<Clothing[]> {
     // 1. 创建查询条件：查询 Clothing 表里的所有数据
@@ -77,7 +75,7 @@ export class ClothingRepo {
   }
 
   /**
-   * 🌟 新增：将单品数据插入到 SQLite 数据库中
+   * 将单品数据插入到 SQLite 数据库中
    */
   public async insert(item: Clothing): Promise<number> {
     // 构造符合关系型数据库要求的数据桶 (ValuesBucket)
@@ -98,6 +96,9 @@ export class ClothingRepo {
     return await this.rdbStore.insert('Clothing', valueBucket);
   }
 
+  /**
+   * 更新数据
+   */
   public async update(item: Clothing): Promise<number> {
     const valueBucket: relationalStore.ValuesBucket = {
       'imageUri': item.imageUri,
@@ -109,14 +110,14 @@ export class ClothingRepo {
       'lastWornDate': item.lastWornDate
     };
 
-    let predicates = new relationalStore.RdbPredicates('Clothing');
+    let predicates = new relationalStore.RdbPredicates('Clothing');//predicates是查询条件构造器，给一个精准坐标
     predicates.equalTo('id', item.id); // 根据 ID 锁定要修改的那件衣服
 
     return await this.rdbStore.update(valueBucket, predicates);
   }
 
   /**
-   * 🌟 新增：根据 ID 查询单件衣物
+   * 根据 ID 查询单件衣物
    */
   public async getById(id: string): Promise<Clothing | null> {
     let predicates = new relationalStore.RdbPredicates('Clothing');

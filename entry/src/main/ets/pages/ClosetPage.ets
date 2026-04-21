@@ -1,11 +1,11 @@
-import { Clothing, MainCategory, SubCategory } from '../model/Clothing'
+import { Clothing} from '../model/Clothing'
 import { ClothingRepo } from '../repository/ClothingRepo'
 import { ClothingService } from '../service/ClothingService'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import router from '@ohos.router'
 import { APP_WALLPAPERS } from '../utils/BackgroundList'
-import { ClothingUtils } from '../utils/ClothingConfig'
+import { ClothingUtils, MainCategory } from '../utils/ClothingConfig'
 
 // 定义左侧侧边栏的 UI 分类配置 (包含 'all' 和 MainCategory)
 interface UICategory {

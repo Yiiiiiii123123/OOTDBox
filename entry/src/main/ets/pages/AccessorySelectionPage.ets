@@ -6,7 +6,9 @@ import { ClothingService } from '../service/ClothingService';
 import { ClothingUtils } from '../utils/ClothingConfig';
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
 
-// ==================== 🎆 终极确认弹窗组件 ====================
+//配饰选择页
+
+// ==================== 终极确认弹窗组件 ====================
 @CustomDialog
 struct OutfitConfirmDialog {
   controller: CustomDialogController
@@ -23,9 +25,9 @@ struct OutfitConfirmDialog {
 
   build() {
     Stack() {
-      // 🌟 背景层：烟花绽放效果 (请在 media 目录下放入一张 fireworks_bg.png 的烟花素材)
-      // 如果没有素材，这里使用带渐变的深色星空背景模拟氛围
+      // 背景层
       Image(APP_WALLPAPERS[this.wallpaperIndex])
+        .width('100%')
         .width('100%')
         .height('100%')
         .objectFit(ImageFit.Cover)
@@ -90,7 +92,7 @@ struct OutfitConfirmDialog {
   }
 }
 
-// ==================== 💍 饰品选择主页面 ====================
+// ==================== 饰品选择主页面 ====================
 @Entry
 @Component
 struct AccessorySelectionPage {
@@ -109,7 +111,7 @@ struct AccessorySelectionPage {
   private repo = new ClothingRepo();
   private clothingService = new ClothingService();
 
-  // 🌟 注册弹窗控制器
+  // 注册弹窗控制器
   dialogController: CustomDialogController = new CustomDialogController({
     builder: OutfitConfirmDialog({
       finalOutfit: [...this.baseOutfit, ...this.selectedAccessories],
@@ -131,21 +133,20 @@ struct AccessorySelectionPage {
     this.loadAccessories();
   }
 
+  //加载配饰分类
   async loadAccessories() {
-    let clothes = await this.repo.getAll();
-    if (clothes) {
-      // 过滤出所有饰品
-      this.allAccessories = clothes.filter(c => c.mainCategory === 'accessory');
-      // 动态提取左侧菜单的分类名称并去重
-      let subs = this.allAccessories.map(c => c.subCategory);
-      this.subCategories = Array.from(new Set(subs));
-      if (this.subCategories.length > 0) {
-        this.currentCategory = this.subCategories[0]; // 默认选中第一个
-      }
+    // 只拿数组，简单直接
+    this.allAccessories = await this.clothingService.getAccessories();
+
+    // 分类列表直接从工具类里拿“全集”
+    this.subCategories = ClothingUtils.getAccessorySubCategories();
+
+    if (this.subCategories.length > 0) {
+      this.currentCategory = this.subCategories[0];
     }
   }
 
-  // 🌟 选中或取消选中饰品逻辑
+  // 选中或取消选中饰品逻辑
   toggleAccessory(item: Clothing) {
     let index = this.selectedAccessories.findIndex(c => c.id === item.id);
     if (index > -1) {
@@ -161,19 +162,14 @@ struct AccessorySelectionPage {
     }
   }
 
-  // 🌟 弹窗内的打卡逻辑
+  // 弹窗内的打卡逻辑
   async confirmOutfit() {
     let finalOutfit = [...this.baseOutfit, ...this.selectedAccessories];
     promptAction.showToast({ message: 'OOTD 记录中...' });
 
-    for (let item of finalOutfit) {
-      item.wearCount = (item.wearCount || 0) + 1;
-      item.lastWornDate = new Date().getTime();
-      await this.clothingService.updateClothing(item);
-    }
-    // 🌟🌟🌟 新增这行代码：把最终穿搭发给全系统！首页一听到就更新了！
+    await this.clothingService.confirmDailyOutfit(finalOutfit);
+    // 新增这行代码：把最终穿搭发给全系统！首页一听到就更新了！
     AppStorage.setOrCreate('todayOutfit', finalOutfit);
-
     promptAction.showToast({ message: '打卡成功！你今天真好看 ✨' });
     setTimeout(() => { router.back({ url: 'pages/HomePage' }) }, 800); // 彻底回到主页
   }
@@ -181,7 +177,7 @@ struct AccessorySelectionPage {
   // 🌟 弹窗内的收藏逻辑
   async saveToFavorite() {
     let finalOutfit = [...this.baseOutfit, ...this.selectedAccessories];
-    await this.clothingService.saveFavoriteOutfit(finalOutfit, this.temperature);
+    await this.clothingService.saveToFavorite(finalOutfit, this.temperature);
     promptAction.showToast({ message: '已加入收藏夹 🌟' });
   }
 
@@ -228,27 +224,37 @@ struct AccessorySelectionPage {
         }.width('30%').height('100%').backgroundColor('#F5F5F5')
 
         // 右侧：70% 饰品网格展示区
-        Grid() {
-          ForEach(this.allAccessories.filter(c => c.subCategory === this.currentCategory), (acc: Clothing) => {
-            GridItem() {
-              Stack({ alignContent: Alignment.TopEnd }) {
-                Image(acc.imageUri)
-                  .width('100%').aspectRatio(1).borderRadius(8).objectFit(ImageFit.Cover)
-                  .opacity(this.selectedAccessories.some(c => c.id === acc.id) ? 0.6 : 1)
+        Stack() {
+          if (this.allAccessories.filter(c => c.subCategory === this.currentCategory).length > 0) {
+            Grid() {
+              ForEach(this.allAccessories.filter(c => c.subCategory === this.currentCategory), (acc: Clothing) => {
+                GridItem() {
+                  Stack({ alignContent: Alignment.TopEnd }) {
 
-                // 选中时的遮罩和打勾符号
-                if (this.selectedAccessories.some(c => c.id === acc.id)) {
-                  Row().width('100%').aspectRatio(1).borderRadius(8).border({ width: 2, color: '#007AFF' })
-                  Circle({ width: 20, height: 20 }).fill('#007AFF').margin(4)
-                  Text('✓').fontColor(Color.White).fontSize(12).fontWeight(FontWeight.Bold).margin({ top: 6, right: 8 })
+                    Image(acc.imageUri)
+                      .width('100%').aspectRatio(1).borderRadius(8).objectFit(ImageFit.Cover)
+                      .opacity(this.selectedAccessories.some(c => c.id === acc.id) ? 0.6 : 1)
+
+                    // 选中时的遮罩和打勾符号
+                    if (this.selectedAccessories.some(c => c.id === acc.id)) {
+                      Row().width('100%').aspectRatio(1).borderRadius(8).border({ width: 2, color: '#007AFF' })
+                      Circle({ width: 20, height: 20 }).fill('#007AFF').margin(4)
+                      Text('✓').fontColor(Color.White).fontSize(12).fontWeight(FontWeight.Bold).margin({ top: 6, right: 8 })
+                    }
+                  }.onClick(() => this.toggleAccessory(acc))
                 }
-              }.onClick(() => this.toggleAccessory(acc))
+              })
             }
-          })
-        }
-        .columnsTemplate('1fr 1fr 1fr') // 右边排  3列
-        .columnsGap(10).rowsGap(10)
-        .width('70%').height('100%').padding(10).backgroundColor(Color.White)
+            .columnsTemplate('1fr 1fr 1fr') // 右边排  3列
+            .columnsGap(10).rowsGap(10)
+            .width('70%').height('100%').padding(10).backgroundColor(Color.White)
+          }else {
+            // 增加空状态占位
+            Text('该分类下暂无饰品').fontColor('#999').fontSize(14)
+          }
+        }.layoutWeight(1)
+
+
       }.layoutWeight(1).width('100%')
 
       // 5. 底部完成按钮
@@ -256,7 +262,7 @@ struct AccessorySelectionPage {
         .width('90%').height(50).borderRadius(25).margin({ top: 15, bottom: 30 })
         .backgroundColor('#007AFF').fontColor(Color.White).fontSize(18).fontWeight(FontWeight.Bold)
         .onClick(() => {
-          // 呼出终极确认烟花弹窗
+          // 呼出确认弹窗
           // 注意：必须重新给弹窗传递最新的合并数据
           this.dialogController = new CustomDialogController({
             builder: OutfitConfirmDialog({
