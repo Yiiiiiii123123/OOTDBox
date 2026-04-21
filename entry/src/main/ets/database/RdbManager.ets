@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS Clothing (
 );`;
 
 const CREATE_TABLE_OUTFIT = `
-CREATE TABLE IF NOT EXISTS OutfitCombination (
+CREATE TABLE IF NOT EXISTS Outfit (
     id TEXT PRIMARY KEY,
     clothingIds TEXT NOT NULL,
     recommendCount INTEGER DEFAULT 0,
@@ -46,7 +46,7 @@ export class RdbManager {
   public async initRdb(context: common.UIAbilityContext): Promise<void> {
     // 数据库配置
     const config: relationalStore.StoreConfig = {
-      name: 'MyWardrobe.db', // 你的数据库名字
+      name: 'MyWardrobe.db', // 数据库名字
       securityLevel: relationalStore.SecurityLevel.S1 // 安全级别，S1为基础级别
     };
 

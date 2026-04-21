@@ -1,4 +1,5 @@
-import { Clothing, MainCategory } from '../model/Clothing';
+import { Clothing} from '../model/Clothing';
+import { MainCategory } from '../utils/ClothingConfig';
 
 export class RecommendService {
 

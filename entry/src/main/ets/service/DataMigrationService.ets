@@ -2,10 +2,13 @@ import fs from '@ohos.file.fs';
 import zlib from '@ohos.zlib';
 import picker from '@ohos.file.picker';
 import common from '@ohos.app.ability.common';
-import { Clothing, ClothingColor, SubCategory } from '../model/Clothing';
+import { Clothing } from '../model/Clothing';
 import { ClothingRepo } from '../repository/ClothingRepo';
 import { util } from '@kit.ArkTS';
 import { promptAction } from '@kit.ArkUI';
+import { ClothingColor, SubCategory } from '../utils/ClothingConfig';
+
+//负责导入数据和导出数据（数据迁移）
 
 // 🌟 专为 JSON 序列化准备的严格类型结构
 export interface ExportClothingData {
@@ -28,7 +31,7 @@ export class DataMigrationService {
   private repo: ClothingRepo = new ClothingRepo();
 
   /**
-   * 📤 终极防弹版：导出并打包数据
+   * 导出并打包数据
    */
   public async exportData(context: common.UIAbilityContext): Promise<MigrationResult> {
     const cacheDir = context.cacheDir;
@@ -130,10 +133,7 @@ export class DataMigrationService {
   }
 
   /**
-   * 📥 终极防弹版：载入并恢复数据
-   */
-  /**
-   * 📥 终极防弹版：载入并恢复数据
+   * 载入并恢复数据
    * 包含智能合并、打破 UI 缓存、纯净文件名生成，彻底解决乱码路径不显示图片的问题
    */
   public async importData(context: common.UIAbilityContext): Promise<MigrationResult> {
