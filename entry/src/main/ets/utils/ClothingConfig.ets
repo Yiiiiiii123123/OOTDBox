@@ -81,6 +81,21 @@ export const WARMTH_OPTIONS: WarmthOption[] = [
   { label: '极厚', value: 10 }
 ];
 
+export interface UICategory {
+  key: string;
+  label: string;
+}
+
+export const UI_CATEGORY_LIST: UICategory[] = [
+  { key: 'all', label: '全部' },
+  { key: MainCategory.TOP, label: '上装' },
+  { key: MainCategory.BOTTOM, label: '下装' },
+  { key: MainCategory.ONE_PIECE, label: '连体' },
+  { key: MainCategory.OUTERWEAR, label: '外套' },
+  { key: MainCategory.SHOES, label: '鞋子' },
+  { key: MainCategory.ACCESSORY, label: '配饰' }
+]
+
 export const CATEGORY_UI_DATA: TextCascadePickerRangeContent[] = [
   { text: '上装', children: [{ text: 'T恤' }, { text: '衬衫' }, { text: 'Polo衫' }, { text: '毛衣' }, { text: '卫衣' }, { text: '吊带/背心' }, { text: '打底衫' }] },
   { text: '下装', children: [{ text: '牛仔裤' }, { text: '休闲裤' }, { text: '西装裤' }, { text: '运动裤' }, { text: '短裤' }, { text: '半身裙' }] },

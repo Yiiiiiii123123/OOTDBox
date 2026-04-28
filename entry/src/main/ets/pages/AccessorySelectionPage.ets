@@ -108,6 +108,8 @@ struct AccessorySelectionPage {
   // 用户选中的饰品
   @State selectedAccessories: Clothing[] = [];
 
+  @StorageProp('currentTemp') currentTemp: number = 20;
+
   private repo = new ClothingRepo();
   private clothingService = new ClothingService();
 
@@ -167,7 +169,11 @@ struct AccessorySelectionPage {
     let finalOutfit = [...this.baseOutfit, ...this.selectedAccessories];
     promptAction.showToast({ message: 'OOTD 记录中...' });
 
-    await this.clothingService.confirmDailyOutfit(finalOutfit);
+    await this.clothingService.confirmDailyOutfit(
+      this.baseOutfit,
+      this.selectedAccessories,
+      this.currentTemp
+    );
     // 新增这行代码：把最终穿搭发给全系统！首页一听到就更新了！
     AppStorage.setOrCreate('todayOutfit', finalOutfit);
     promptAction.showToast({ message: '打卡成功！你今天真好看 ✨' });
@@ -177,7 +183,7 @@ struct AccessorySelectionPage {
   // 🌟 弹窗内的收藏逻辑
   async saveToFavorite() {
     let finalOutfit = [...this.baseOutfit, ...this.selectedAccessories];
-    await this.clothingService.saveToFavorite(finalOutfit, this.temperature);
+    await this.clothingService.saveToFavorite(this.baseOutfit, this.temperature,this.selectedAccessories);
     promptAction.showToast({ message: '已加入收藏夹 🌟' });
   }
 
@@ -253,7 +259,6 @@ struct AccessorySelectionPage {
             Text('该分类下暂无饰品').fontColor('#999').fontSize(14)
           }
         }.layoutWeight(1)
-
 
       }.layoutWeight(1).width('100%')
 

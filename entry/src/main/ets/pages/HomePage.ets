@@ -2,7 +2,12 @@ import { WeatherService } from '../service/WeatherService'
 import { router } from '@kit.ArkUI'
 import { City } from '../utils/CityList'
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
-import { Clothing } from '../model/Clothing'; // 🌟 记得引入 Clothing 模型
+import { Clothing } from '../model/Clothing';
+import { PreferenceRepo } from '../repository/PreferenceRepo';
+import { common } from '@kit.AbilityKit';
+import { ClothingService } from '../service/ClothingService';
+
+//首页
 
 @Entry
 @Component
@@ -21,8 +26,14 @@ struct HomePage {
   private weatherService: WeatherService = new WeatherService()
   private isUpdatingWeather: boolean = false
 
+  private clothingService = new ClothingService();
+
   aboutToAppear() {
+    this.city = AppStorage.get<string>('currentCityName') || '厦门';
+    this.cityCode = AppStorage.get<string>('currentCityCode') || '350200';
+
     AppStorage.setOrCreate('selectedCity', null)
+    this.loadTodayOutfit();
   }
 
   onPageShow() {
@@ -33,7 +44,7 @@ struct HomePage {
       this.loadWeather()
       this.selectedCity = null
     } else {
-      if (this.cityCode === '350200' && this.weatherText === '加载中...') {
+      if (this.weatherText === '加载中...') {
         this.loadWeather()
       }
     }
@@ -71,6 +82,32 @@ struct HomePage {
       }
     } finally {
       this.isUpdatingWeather = false
+    }
+  }
+
+  // 今日穿搭加载方法
+  async loadTodayOutfit() {
+    let context = getContext(this) as common.UIAbilityContext;
+
+    // 1. 从偏好设置获取今天的 ID 列表
+    let ids = await PreferenceRepo.getTodayOutfitIds(context);
+
+    if (ids.length > 0) {
+      let outfitClothes: Clothing[] = [];
+
+      // 2. 拿着 ID 去数据库逐个捞出真实的衣服
+      for (let i = 0; i < ids.length; i++) {
+        let item: Clothing | null = await this.clothingService.getClothingById(ids[i]);
+        if (item) {
+          outfitClothes.push(item);
+        }
+      }
+
+      // 3. 将装满真实衣服的数组广播出去，面板瞬间点亮！
+      AppStorage.setOrCreate('todayOutfit', outfitClothes);
+    } else {
+      // 如果没有数据，或者过期了，就给个空数组
+      AppStorage.setOrCreate('todayOutfit', []);
     }
   }
 
@@ -118,10 +155,10 @@ struct HomePage {
           .margin({ top: 8 })
           .shadow({ radius: 8, color: '#00000020' })
 
-        // 🌟 新增：今日穿搭展示面板
+        // 今日穿搭展示面板
         this.buildTodayOutfitPanel()
 
-        // 🌟 使用弹性留白，自动把底部的按钮顶下去
+        // 使用弹性留白，自动把底部的按钮顶下去
         Blank()
 
         // 两个卡片形按钮
@@ -154,7 +191,7 @@ struct HomePage {
     .width('100%').height('100%')
   }
 
-  // 🌟 独立出来的面板构建器：今日完美穿搭面板 (固定高度+内部滑动版)
+  // 独立出来的面板构建器：今日完美穿搭面板 (固定高度+内部滑动版)
   @Builder buildTodayOutfitPanel() {
     Column() {
       // 标题

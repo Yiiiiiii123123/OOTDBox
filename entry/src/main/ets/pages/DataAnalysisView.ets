@@ -1,12 +1,14 @@
 import router from '@ohos.router';
 import { Clothing } from '../model/Clothing';
-import { ClothingRepo } from '../repository/ClothingRepo';
 import { ClothingUtils } from '../utils/ClothingConfig';
+import { ClothingService } from '../service/ClothingService';
+
+//数据分析页面
 
 @Entry
 @Component
 struct DataAnalysisView {
-  private repo: ClothingRepo = new ClothingRepo();
+  private service: ClothingService = new ClothingService();
 
   // --- 状态数据 (接管真实的数据库流) ---
   @State isLoading: boolean = true;
@@ -27,8 +29,8 @@ struct DataAnalysisView {
 
   async loadData() {
     try {
-      // 1. 从数据库拉取全部衣服
-      const list = await this.repo.getAll() || [];
+      // 1. 拉取全部衣服
+      const list = await this.service.getAllClothes() || [];
       this.totalCount = list.length;
 
       if (this.totalCount === 0) {
@@ -41,7 +43,7 @@ struct DataAnalysisView {
       list.forEach((item: Clothing) => {
         // 使用翻译官，将底层的英文枚举转为中文大类名
         const label = ClothingUtils.getMainCategoryLabel(item.mainCategory.toString());
-        categoryMap.set(label, (categoryMap.get(label) || 0) + 1);
+        categoryMap.set(label, (categoryMap.get(label) || 0) + 1);//统计出现次数
       });
 
       // 将统计结果转换为数组并按占比从大到小排序
@@ -50,15 +52,19 @@ struct DataAnalysisView {
       this.categoryLabels = sortedCategories.map(e => e[0]);
       this.categoryValues = sortedCategories.map(e => e[1]);
 
-      // 3. 🌟 基于真实的 wearCount 进行红黑榜排序
+      // 3. 基于真实的 wearCount 进行红黑榜排序
       // 先将所有衣服按穿戴次数从高到低排序 (防止旧数据没该字段，默认设为0)
       const sortedByWear = [...list].sort((a, b) => (b.wearCount || 0) - (a.wearCount || 0));
 
-      // 🔴 红榜：过滤出至少穿过 1 次的衣服，取前 3 名
+      // 红榜：过滤出至少穿过 1 次的衣服，取前 3 名
       this.topFavorites = sortedByWear.filter(item => (item.wearCount || 0) > 0).slice(0, 3);
 
-      // ⚫️ 黑榜：过滤出穿戴次数为 0 的衣服，取前 3 名
-      this.idleWarnings = sortedByWear.filter(item => (item.wearCount || 0) === 0).slice(0, 3);
+      // 黑榜：过滤出穿戴次数少的衣服，取前 3 名
+      this.idleWarnings = sortedByWear
+        .filter(item => (item.wearCount || 0) <= 5) // 设定吃灰阈值
+        .reverse() // 将降序变升序，让 0 次的在前面，1 次的在后面
+        .slice(0, 3); // 取前 3 个
+      //this.idleWarnings = sortedByWear.slice(-3).reverse();
 
     } catch (e) {
       console.error('数据分析页加载失败:', e);
@@ -114,6 +120,8 @@ struct DataAnalysisView {
 
   // ================= 拆分组件 Builder =================
 
+
+  //品类构成
   @Builder buildCategoryCard() {
     Column() {
       Text(`品类构成 (共 ${this.totalCount} 件)`)
@@ -147,6 +155,7 @@ struct DataAnalysisView {
     .shadow({ radius: 10, color: 'rgba(0,0,0,0.05)', offsetY: 4 })
   }
 
+  //小印章
   @Builder buildLegendItem(name: string, percent: string, color: string) {
     Row({ space: 8 }) {
       Circle({ width: 10, height: 10 }).fill(color)
@@ -156,6 +165,7 @@ struct DataAnalysisView {
     }.width('100%')
   }
 
+  //红榜
   @Builder buildTopFavoriteCard() {
     Column() {
       Row() {
@@ -198,6 +208,7 @@ struct DataAnalysisView {
     .shadow({ radius: 10, color: 'rgba(0,0,0,0.05)', offsetY: 4 })
   }
 
+  //黑榜
   @Builder buildIdleWarningCard() {
     Column() {
       Row() {
@@ -205,7 +216,7 @@ struct DataAnalysisView {
         Text('黑榜').fontSize(12).fontColor('#666').backgroundColor('#F0F0F0').padding({ left: 6, right: 6, top: 2, bottom: 2 }).borderRadius(4).margin({ left: 8 })
       }.width('100%').margin({ bottom: 15 })
 
-      // 🌟 新增空状态判断
+      // 新增空状态判断
       if (this.idleWarnings.length === 0) {
         Text('太棒啦！你的衣橱利用率极高，没有吃灰的衣服哦 🎉')
           .fontSize(13).fontColor('#007AFF').width('100%').textAlign(TextAlign.Center).margin({ top: 10, bottom: 10 })
@@ -220,9 +231,6 @@ struct DataAnalysisView {
                 Text(`已穿过 ${item.wearCount || 0} 次，快给它个机会`).fontSize(12).fontColor('#FF4B4B')
               }.layoutWeight(1).alignItems(HorizontalAlign.Start)
 
-              Button('搭配')
-                .width(60).height(28).fontSize(12)
-                .backgroundColor('rgba(0,0,0,0.05)').fontColor('#333')
             }.width('100%')
           })
         }.width('100%')

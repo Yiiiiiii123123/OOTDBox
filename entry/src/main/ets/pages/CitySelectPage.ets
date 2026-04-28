@@ -1,6 +1,11 @@
 import router from '@ohos.router';
 import { groupedCities, alphabets, City, CityGroup } from '../utils/CityList';
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
+import dataPreferences from '@ohos.data.preferences';
+import common from '@ohos.app.ability.common';
+import { PreferenceRepo } from '../repository/PreferenceRepo';
+
+//城市选择页
 
 @Entry
 @Component
@@ -18,6 +23,19 @@ export struct CitySelectPage {
       .backgroundColor('#F5F7FA')
       .width('100%')
       .padding({ left: 20, top: 4, bottom: 4 })
+  }
+
+  // 抽离出来的独立异步方法，逻辑清清爽爽，一眼就能找到！
+  async handleCitySelect(item: City) {
+    // 1. 存入内存 (UI 层的活)
+    AppStorage.setOrCreate('selectedCity', item);
+
+    // 2. 存入硬盘 (派发给 Service 层去干)
+    let context = getContext(this) as common.UIAbilityContext;
+    await PreferenceRepo.saveCity(context, item.city, item.adcode);
+
+    // 3. 页面返回 (UI 层的活)
+    router.back();
   }
 
   build() {
@@ -69,8 +87,7 @@ export struct CitySelectPage {
                       normal: { .backgroundColor(Color.Transparent) }
                     })
                     .onClick(() => {
-                      AppStorage.set('selectedCity', item);
-                      router.back();
+                      this.handleCitySelect(item);
                     })
                   }, (item: City) => item.adcode)
                 }
@@ -80,15 +97,16 @@ export struct CitySelectPage {
             .width('100%')
             .height('100%')
             .scrollBar(BarState.Off)
+            .sticky(StickyStyle.Header) // 吸顶效果！
 
-            // 🌟 右侧控件，关闭了放大气泡提示
+            // 右侧控件
             AlphabetIndexer({ arrayValue: alphabets, selected: 0 })
               .color('#666')
               .selectedColor('#666')
               .selectedBackgroundColor(Color.Transparent)
               .font({ size: 12 })
               .selectedFont({ size: 12, weight: FontWeight.Normal })
-              .usingPopup(false) // 🌟 这里改成了 false，彻底关掉气泡
+              .usingPopup(false) // 关掉气泡
               .itemSize(20)
               .margin({ right: 4 })
               .onSelect((index: number) => {

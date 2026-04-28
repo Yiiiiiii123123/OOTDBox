@@ -1,19 +1,18 @@
 import { Clothing } from '../model/Clothing';
-import { ClothingRepo } from '../repository/ClothingRepo';
 import { ClothingService } from '../service/ClothingService';
 import { WeatherService } from '../service/WeatherService';
 import { ClothingUtils } from '../utils/ClothingConfig';
-import { City } from '../utils/CityList';
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
 import { RecommendationService } from '../service/RecommendationService';
 
+//推荐页面！
 
 @Entry
 @Component
 struct RecommendPage {
-  // 🌟 使用 @StorageProp 监听广播站，只要 HomePage 更新了，这里会自动变
+  // 使用 @StorageProp 监听广播站，只要 HomePage 更新了，这里会自动变
   @StorageProp('currentCityName') city: string = '未知'
   @StorageProp('currentCityCode') cityCode: string = '350200'
   @StorageProp('currentTemp') @Watch('onTempChange') temperature: number = 20
@@ -21,15 +20,11 @@ struct RecommendPage {
 
   @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
-  // 监听全局选中的城市
-  @StorageLink('selectedCity') selectedCity: City | null = null
-
   @State clothingList: Clothing[] = []
   @State outfit: Clothing[] = []
   @State isGenerating: boolean = false
   @State isFavorited: boolean = false
 
-  private repo: ClothingRepo = new ClothingRepo()
   private weatherService: WeatherService = new WeatherService()
   private recommendService: RecommendationService = new RecommendationService()
   private clothingService: ClothingService = new ClothingService()
@@ -40,27 +35,20 @@ struct RecommendPage {
     this.generateOutfit();
   }
 
-  aboutToAppear() {
-    this.initCityData(); // 1. 先同步城市
-    this.loadData();     // 2. 加载衣服
-    this.loadWeather();  // 3. 获取天气
+  async aboutToAppear() {
+    await this.loadData();   // 异步加载衣服
+    // 获取天气
+    if (this.weatherText === '获取中' || this.weatherText === '获取失败') {
+      // 场景 A：没天气。去拉取，拉取成功后 loadWeather 内部会自己调用 generateOutfit()
+      this.loadWeather();
+    } else {
+      // 场景 B：如果天气已经从首页同步过来了，直接开跑算法！
+      this.generateOutfit();
+    }
   }
 
   onPageShow() {
-    // 🌟 如果在其他页面切换了城市，返回或进入该页面时立即刷新
-    this.initCityData();
-  }
 
-  // 🌟 新增：城市数据初始化方法
-  private initCityData() {
-    // 从 AppStorage 尝试获取持久化的城市信息，如果没有则保持默认
-    // 注意：HomePage 选择城市后应存入 AppStorage
-    if (this.selectedCity) {
-      this.city = this.selectedCity.city;
-      this.cityCode = this.selectedCity.adcode;
-      // 切换了城市后，需要重新拉取天气
-      this.loadWeather();
-    }
   }
 
   async loadWeather() {
@@ -70,9 +58,10 @@ struct RecommendPage {
     try {
       const result = await this.weatherService.getWeather(this.cityCode);
       if (result) {
-        this.temperature = result.temperature;
-        this.weatherText = result.weather;
-        this.city = result.city;
+        AppStorage.setOrCreate('currentTemp', result.temperature);
+        AppStorage.setOrCreate('currentWeatherText', result.weather);
+        AppStorage.setOrCreate('currentCityName', result.city);
+        AppStorage.setOrCreate('currentCityCode', this.cityCode);
         // 天气好了，立即生成推荐
         this.generateOutfit();
       }
@@ -84,12 +73,19 @@ struct RecommendPage {
   }
 
   async loadData() {
-    const list = await this.repo.getAll();
+    const list = await this.clothingService.getAllClothes();
     this.clothingList = list ?? [];
   }
 
-  // 🌟 将生成搭配方法升级为异步调用新算法
+
+  // 将生成搭配方法升级为异步调用新算法
   async generateOutfit() {
+
+    // 防抖护盾：如果已经在算着了，别来捣乱！直接退出
+    if (this.isGenerating) {
+      return;
+    }
+
     // 检查是否有衣服，如果没有直接返回
     if (!this.clothingList || this.clothingList.length === 0) {
       promptAction.showToast({ message: '衣橱太少啦，无法推荐~' });
@@ -102,14 +98,13 @@ struct RecommendPage {
     // 稍微延迟一下，给用户一个“正在思考算法”的视觉缓冲，体验更好
     setTimeout(async () => {
       try {
-        // 🌟 调用新的核心推荐算法
+        // 调用核心推荐算法
         const result = await this.recommendService.getBestRecommendation(this.temperature);
 
         if (result && result.clothes.length > 0) {
           // 将算法计算出的实体衣服数组赋值给 UI 绑定的 outfit 变量
           this.outfit = result.clothes;
-          // (可选) 如果你需要马上就把这个 combination 存库，也可以在这里操作
-          // this.currentCombination = result.combination;
+
         } else {
           // 如果算法返回 null，说明找不齐必需的衣服（比如没鞋子）
           this.outfit = [];
@@ -124,12 +119,12 @@ struct RecommendPage {
     }, 600);
   }
 
-  // --- 🌟 收藏逻辑：增加异步等待和成功判断 ---
+  // --- 收藏逻辑：增加异步等待和成功判断 ---
   async toggleFavorite() {
     if (this.outfit.length === 0 || this.isGenerating) return;
 
     if (!this.isFavorited) {
-      // 🌟 传入 outfit 和当前的气温 temperature
+      // 传入 outfit 和当前的气温 temperature
       const success = await this.clothingService.saveToFavorite(this.outfit, this.temperature);
 
       if (success) {
@@ -141,49 +136,6 @@ struct RecommendPage {
     }
   }
 
-  /**
-   * 🌟 确认穿这套衣服的打卡逻辑
-   * @param selectedOutfit 包含当前搭配中所有衣服单品的数组
-   */
-  async confirmOutfit(selectedOutfit: Clothing[]) {
-    try {
-      // 1. 基础校验
-      if (!selectedOutfit || selectedOutfit.length === 0) {
-        promptAction.showToast({ message: '当前搭配为空哦~' });
-        return;
-      }
-
-      // 给用户一个正在处理的视觉反馈
-      promptAction.showToast({ message: 'OOTD 记录中...' });
-
-      // 2. 遍历当前穿搭中的每一件衣服，更新其穿着次数
-      for (let i = 0; i < selectedOutfit.length; i++) {
-        let item = selectedOutfit[i];
-
-        // 🌟 核心：将穿着次数 + 1
-        // 使用 (item.wearCount || 0) 是为了防止旧数据没有这个字段时报错 NaN
-        item.wearCount = (item.wearCount || 0) + 1;
-
-        // 进阶拓展：如果你以后想做更精准的“吃灰预警”，这里可以加一行记录最后一次穿着的时间戳
-         item.lastWornDate = new Date().getTime();
-
-        // 3. 调用 Service 层更新到本地数据库
-        await this.clothingService.updateClothing(item);
-      }
-
-      // 4. 成功反馈与闭环跳转
-      promptAction.showToast({ message: '打卡成功！衣服数据已更新 ✨' });
-
-      // 延迟 500ms 后返回上一页或者跳转回主页
-      setTimeout(() => {
-        router.back();
-      }, 500);
-
-    } catch (error) {
-      console.error('更新穿搭次数失败:', error);
-      promptAction.showToast({ message: '打卡失败，请重试' });
-    }
-  }
 
   build() {
     Stack() {
@@ -216,7 +168,7 @@ struct RecommendPage {
           // 收藏工具条
           Row() {
             Text('智能推荐结果').fontSize(16).fontWeight(FontWeight.Medium).fontColor('#444')
-            // 🌟 动态切换图标
+            // 动态切换图标
             Image(this.isFavorited ? $r('app.media.ic_favorite_filled') : $r('app.media.ic_favorite_border'))
               .width(30).height(30)
               .scale({ x: this.isFavorited ? 1.1 : 1.0, y: this.isFavorited ? 1.1 : 1.0 }) // 点亮时稍微放大

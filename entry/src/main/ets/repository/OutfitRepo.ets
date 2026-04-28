@@ -15,6 +15,7 @@ export class OutfitRepo {
       const valueBucket: relationalStore.ValuesBucket = {
         'id': item.id,
         'clothingIds': item.clothingIds.join(','), // 存入数据库前转为逗号字符串
+        'accessoryIds': item.accessoryIds.join(','), // 🌟 修复：第一次落库时，必须把配饰也带上！
         'recommendCount': item.recommendCount,
         'acceptCount': item.acceptCount,
         'averageTemp': item.averageTemp,
@@ -30,7 +31,7 @@ export class OutfitRepo {
   }
 
   /**
-   * 删
+   * 删一条
    */
   public async deleteOutfit(outfitId: string): Promise<number> {
     let predicates = new relationalStore.RdbPredicates('Outfit');
@@ -39,47 +40,95 @@ export class OutfitRepo {
   }
 
   /**
-   * 【关键查询】：找出所有包含了某件衣服的组合
+   * 删全部
    */
-  public async getOutfitsContainingClothing(clothingId: string): Promise<Outfit[]> {
-    let predicates = new relationalStore.RdbPredicates('Outfit');
-    // 核心逻辑：在 clothingIds 字符串字段中模糊匹配包含该单品 ID 的记录
-    predicates.like('clothingIds', `%${clothingId}%`);
+  public async deleteAll(): Promise<boolean> {
+    try {
+      // 1. 获取数据库实例 (根据你实际的数据库获取方式调整)
+      let store = this.rdbStore;
 
-    // 注意：这里不要限制列，查询所有字段以便还原完整对象
-    let resultSet = await this.rdbStore.query(predicates);
+      if (!store) {
+        console.error('OutfitRepo', '数据库实例未初始化');
+        return false;
+      }
+
+      // 2. 创建空谓词：只指定表名，不加任何 equalTo() 限制条件
+      const predicates = new relationalStore.RdbPredicates('Outfit');
+
+      // 3. 执行删除操作
+      const rowsAffected = await store.delete(predicates);
+
+      console.info('OutfitRepo', `成功清空穿搭表，共删除了 ${rowsAffected} 条记录`);
+      return true;
+
+    } catch (error) {
+      console.error('OutfitRepo', '清空穿搭表异常: ' + JSON.stringify(error));
+      return false;
+    }
+  }
+
+  /**
+   * 【关键查询】：找出所有包含了某件单品（衣服或配饰）的组合
+   */
+  public async getOutfitsContainingClothing(itemId: string): Promise<Outfit[]> {
     let outfits: Outfit[] = [];
 
-    // 1. 提前锁定列索引，提升读取性能
-    const colId = resultSet.getColumnIndex('id');
-    const colIdsStr = resultSet.getColumnIndex('clothingIds');
-    const colAvgTemp = resultSet.getColumnIndex('averageTemp');
-    const colRecCount = resultSet.getColumnIndex('recommendCount');
-    const colAccCount = resultSet.getColumnIndex('acceptCount');
-    const colLastWorn = resultSet.getColumnIndex('lastWornDate');
-    const colFavTime = resultSet.getColumnIndex('favoriteTime');
+    // 1. 🌟 组合 OR 查询条件：两张“网”一起撒
+    let predicates = new relationalStore.RdbPredicates('Outfit');
+    predicates.beginWrap()
+      .like('clothingIds', `%${itemId}%`)
+      .or()
+      .like('accessoryIds', `%${itemId}%`)
+      .endWrap();
 
-    // 2. 遍历结果集
-    while (resultSet.goToNextRow()) {
-      const id = resultSet.getString(colId);
-      const idsStr = resultSet.getString(colIdsStr);
-      const avgTemp = resultSet.getDouble(colAvgTemp);
+    let resultSet = await this.rdbStore.query(predicates);
 
-      // 实例化 Outfit 对象
-      // 注意：构造函数需要数组，所以要用 split(',') 切割
-      const outfit = new Outfit(idsStr.split(','), avgTemp, id);
+    try {
+      // 提前锁定列索引
+      const colId = resultSet.getColumnIndex('id');
+      const colClothingIds = resultSet.getColumnIndex('clothingIds');
+      const colAccessoryIds = resultSet.getColumnIndex('accessoryIds'); // 🌟 获取配饰列
+      const colAvgTemp = resultSet.getColumnIndex('averageTemp');
+      const colRecCount = resultSet.getColumnIndex('recommendCount');
+      const colAccCount = resultSet.getColumnIndex('acceptCount');
+      const colLastWorn = resultSet.getColumnIndex('lastWornDate');
+      const colFavTime = resultSet.getColumnIndex('favoriteTime');
 
-      // 还原统计数据和状态
-      outfit.recommendCount = resultSet.getLong(colRecCount);
-      outfit.acceptCount = resultSet.getLong(colAccCount);
-      outfit.lastWornDate = resultSet.getLong(colLastWorn);
-      outfit.favoriteTime = resultSet.getLong(colFavTime);
+      while (resultSet.goToNextRow()) {
+        const clothingIdsStr = resultSet.getString(colClothingIds) || '';
+        const accessoryIdsStr = resultSet.getString(colAccessoryIds) || ''; // 防御空值
 
-      outfits.push(outfit);
+        // 2. 🌟 内存级精确过滤（解决子串匹配的“误伤陷阱”）
+        // 把字符串切成数组，进行严格的全等验证
+        const clothingIdsArr = clothingIdsStr ? clothingIdsStr.split(',') : [];
+        const accessoryIdsArr = accessoryIdsStr ? accessoryIdsStr.split(',') : [];
+
+        if (!clothingIdsArr.includes(itemId) && !accessoryIdsArr.includes(itemId)) {
+          continue; // 如果只是名字很像（比如 A1 匹配了 A10），直接丢弃，看下一行！
+        }
+
+        const id = resultSet.getString(colId);
+        const avgTemp = resultSet.getDouble(colAvgTemp);
+
+        // 3. 🌟 修复参数错位：完美适配最新版的 Outfit 构造函数
+        const outfit = new Outfit(clothingIdsArr, accessoryIdsArr, avgTemp, id);
+
+        outfit.recommendCount = resultSet.getLong(colRecCount);
+        outfit.acceptCount = resultSet.getLong(colAccCount);
+        outfit.lastWornDate = resultSet.getLong(colLastWorn);
+        outfit.favoriteTime = resultSet.getLong(colFavTime);
+
+        outfits.push(outfit);
+      }
+    } catch (error) {
+      console.error('ClothingRepo', '按单品查询组合失败: ' + JSON.stringify(error));
+    } finally {
+      // 4. 🌟 终极防线：无论发生什么错误，游标必须关闭，绝不漏水！
+      if (resultSet) {
+        resultSet.close();
+      }
     }
 
-    // 3. 释放资源
-    resultSet.close();
     return outfits;
   }
 
@@ -87,27 +136,55 @@ export class OutfitRepo {
    * 获取所有收藏的搭配记录
    */
   public async getFavoriteOutfits(): Promise<Outfit[]> {
-    let predicates = new relationalStore.RdbPredicates('Outfit'); // 🌟 修复表名
+    let predicates = new relationalStore.RdbPredicates('Outfit');
     predicates.greaterThan('favoriteTime', 0);
     predicates.orderByDesc('favoriteTime');
 
     let resultSet = await this.rdbStore.query(predicates);
     let results: Outfit[] = [];
 
-    while (resultSet.goToNextRow()) {
-      const idsStr = resultSet.getString(resultSet.getColumnIndex('clothingIds'));
-      const initialTemp = resultSet.getDouble(resultSet.getColumnIndex('averageTemp'));
-      const id = resultSet.getString(resultSet.getColumnIndex('id'));
+    try {
+      // 1. 提前锁定所有列索引，包括新增的配饰列
+      const colId = resultSet.getColumnIndex('id');
+      const colClothingIds = resultSet.getColumnIndex('clothingIds');
+      const colAccessoryIds = resultSet.getColumnIndex('accessoryIds'); // 🌟 新增读取配饰列
+      const colAvgTemp = resultSet.getColumnIndex('averageTemp');
+      const colRecCount = resultSet.getColumnIndex('recommendCount');
+      const colAccCount = resultSet.getColumnIndex('acceptCount');
+      const colLastWorn = resultSet.getColumnIndex('lastWornDate');
+      const colFavTime = resultSet.getColumnIndex('favoriteTime');
 
-      const item = new Outfit(idsStr.split(','), initialTemp, id);
-      item.recommendCount = resultSet.getLong(resultSet.getColumnIndex('recommendCount'));
-      item.acceptCount = resultSet.getLong(resultSet.getColumnIndex('acceptCount'));
-      item.lastWornDate = resultSet.getLong(resultSet.getColumnIndex('lastWornDate'));
-      item.favoriteTime = resultSet.getLong(resultSet.getColumnIndex('favoriteTime'));
+      while (resultSet.goToNextRow()) {
+        const clothingIdsStr = resultSet.getString(colClothingIds) || '';
+        const accessoryIdsStr = resultSet.getString(colAccessoryIds) || ''; // 防御空值
 
-      results.push(item);
+        // 切割成数组
+        const clothingIdsArr = clothingIdsStr ? clothingIdsStr.split(',') : [];
+        const accessoryIdsArr = accessoryIdsStr ? accessoryIdsStr.split(',') : [];
+
+        const initialTemp = resultSet.getDouble(colAvgTemp);
+        const id = resultSet.getString(colId);
+
+        // 2. 🌟 修复参数错位：完美适配最新版构造函数，把衣服和配饰分开传入！
+        const item = new Outfit(clothingIdsArr, accessoryIdsArr, initialTemp, id);
+
+        // 还原数据
+        item.recommendCount = resultSet.getLong(colRecCount);
+        item.acceptCount = resultSet.getLong(colAccCount);
+        item.lastWornDate = resultSet.getLong(colLastWorn);
+        item.favoriteTime = resultSet.getLong(colFavTime);
+
+        results.push(item);
+      }
+    } catch (error) {
+      console.error('ClothingService', '获取收藏搭配记录失败: ' + JSON.stringify(error));
+    } finally {
+      // 3. 🌟 终极防线：在 finally 中关闭游标
+      if (resultSet) {
+        resultSet.close();
+      }
     }
-    resultSet.close(); // 在这里统一关闭，调用者再也不用担心忘记关闭游标了
+
     return results;
   }
 
@@ -128,11 +205,17 @@ export class OutfitRepo {
       // 检查是否真的查到了数据，并且将游标移动到第一行
       if (resultSet.rowCount > 0 && resultSet.goToFirstRow()) {
         // --- 开始解析数据 ---
-        const idsStr = resultSet.getString(resultSet.getColumnIndex('clothingIds'));
+        // 🌟 新增：分别读取核心衣服和配饰，并做空值防御
+        const clothingIdsStr = resultSet.getString(resultSet.getColumnIndex('clothingIds')) || '';
+        const accessoryIdsStr = resultSet.getString(resultSet.getColumnIndex('accessoryIds')) || '';
         const averageTemp = resultSet.getDouble(resultSet.getColumnIndex('averageTemp'));
 
-        // 实例化 Outfit 对象 (🌟 注意要把字符串切割回数组)
-        const outfit = new Outfit(idsStr.split(','), averageTemp, id);
+        // 切割成数组
+        const clothingIdsArr = clothingIdsStr ? clothingIdsStr.split(',') : [];
+        const accessoryIdsArr = accessoryIdsStr ? accessoryIdsStr.split(',') : [];
+
+        // 🌟 修复核心痛点：实例化 Outfit 对象时，把衣服和配饰分开传给构造函数！
+        const outfit = new Outfit(clothingIdsArr, accessoryIdsArr, averageTemp, id);
 
         // 还原统计与状态字段
         outfit.recommendCount = resultSet.getLong(resultSet.getColumnIndex('recommendCount'));
@@ -164,7 +247,9 @@ export class OutfitRepo {
       // 1. 把对象的最新状态装进“数据桶”里
       const valueBucket: relationalStore.ValuesBucket = {
         // 注意：ID 通常是不可变的，所以不需要放进桶里更新
-        'clothingIds': item.clothingIds.join(','), // 存入时把数组变回字符串
+        'clothingIds': item.clothingIds.join(','),
+        // 🌟 终极修复：把配饰也变成字符串装进桶里，一起发给数据库！
+        'accessoryIds': item.accessoryIds.join(','),
         'averageTemp': item.averageTemp,
         'recommendCount': item.recommendCount,
         'acceptCount': item.acceptCount,

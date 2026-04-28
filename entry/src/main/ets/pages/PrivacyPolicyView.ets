@@ -1,5 +1,7 @@
 import router from '@ohos.router';
 
+//隐私政策
+
 // 定义条款数据结构
 interface PolicySection {
   title: string;
@@ -9,7 +11,7 @@ interface PolicySection {
 @Entry
 @Component
 struct PrivacyPolicyView {
-  // 📜 专门为你的穿搭 App 定制的合规文案
+  //文案
   private policies: PolicySection[] = [
     {
       title: '一、 收集的信息及使用目的',

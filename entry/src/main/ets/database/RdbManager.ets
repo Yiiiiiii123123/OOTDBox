@@ -18,6 +18,7 @@ const CREATE_TABLE_OUTFIT = `
 CREATE TABLE IF NOT EXISTS Outfit (
     id TEXT PRIMARY KEY,
     clothingIds TEXT NOT NULL,
+    accessoryIds TEXT,
     recommendCount INTEGER DEFAULT 0,
     acceptCount INTEGER DEFAULT 0,
     averageTemp REAL DEFAULT 0.0,

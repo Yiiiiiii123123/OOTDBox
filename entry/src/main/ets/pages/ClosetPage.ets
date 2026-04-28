@@ -5,23 +5,9 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { picker } from '@kit.CoreFileKit'
 import router from '@ohos.router'
 import { APP_WALLPAPERS } from '../utils/BackgroundList'
-import { ClothingUtils, MainCategory } from '../utils/ClothingConfig'
+import { ClothingUtils, MainCategory, UICategory, UI_CATEGORY_LIST } from '../utils/ClothingConfig'
 
-// 定义左侧侧边栏的 UI 分类配置 (包含 'all' 和 MainCategory)
-interface UICategory {
-  key: string;
-  label: string;
-}
-
-const UI_CATEGORY_LIST: UICategory[] = [
-  { key: 'all', label: '全部' },
-  { key: MainCategory.TOP, label: '上装' },
-  { key: MainCategory.BOTTOM, label: '下装' },
-  { key: MainCategory.ONE_PIECE, label: '连体' },
-  { key: MainCategory.OUTERWEAR, label: '外套' },
-  { key: MainCategory.SHOES, label: '鞋子' },
-  { key: MainCategory.ACCESSORY, label: '配饰' }
-]
+//衣橱页面
 
 @Entry
 @Component
@@ -31,14 +17,8 @@ struct ClosetPage {
   @State selectedCategory: string = 'all' // 当前选中的一级分类
   @StorageProp('wallpaper_index') wallpaperIndex: number = 0;
 
-
-  private repo: ClothingRepo = new ClothingRepo()
   private service: ClothingService = new ClothingService()
   private categories: UICategory[] = UI_CATEGORY_LIST
-
-  aboutToAppear() {
-    this.loadData()
-  }
 
   onPageShow() {
     this.loadData()
@@ -46,7 +26,7 @@ struct ClosetPage {
 
   async loadData() {
     try {
-      const list = await this.repo.getAll()
+      const list = await this.service.getAllClothes();
       this.clothingList = list ?? []
       console.info(`加载了 ${this.clothingList.length} 件衣物`)
 
@@ -224,7 +204,6 @@ struct ClosetPage {
                 this.goToClothingDetail(item)
               })
             }
-            .width('33.3%')
             .padding(4)
           })
         }
@@ -239,7 +218,7 @@ struct ClosetPage {
     .padding({ top: 16 })
   }
 
-  // 🌟 核心修改：直接跳转到确认页
+  // 直接跳转到确认页
   async selectImage() {
     try {
       const photoPicker = new picker.PhotoViewPicker()

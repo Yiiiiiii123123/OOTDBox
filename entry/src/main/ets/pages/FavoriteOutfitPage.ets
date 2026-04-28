@@ -4,18 +4,22 @@ import { Clothing } from '../model/Clothing';
 import { ClothingService, OutfitViewData } from '../service/ClothingService';
 import { ClothingUtils } from '../utils/ClothingConfig';
 
+//收藏的穿搭页面
+
 @Entry
 @Component
 struct FavoriteOutfitPage {
   @State favoriteOutfits: Array<OutfitViewData> = [];
   @State isLoading: boolean = true;
+  @StorageProp('currentTemp') currentTemp: number = 20;
 
   private service: ClothingService = new ClothingService();
 
-  aboutToAppear() {
+  onPageShow() {
     this.loadFavorites();
   }
 
+  //加载穿搭数据
   async loadFavorites() {
     this.isLoading = true;
     try {
@@ -25,37 +29,49 @@ struct FavoriteOutfitPage {
     }
   }
 
-  async handleWearOutfit(outfit: Clothing[]) {
+  async handleWearOutfit(outfitItems: Clothing[]) {
     try {
-      promptAction.showToast({ message: '打卡记录中...' });
-      const currentTime = new Date().getTime();
-      for (let i = 0; i < outfit.length; i++) {
-        let item = outfit[i];
-        item.wearCount = (item.wearCount || 0) + 1;
-        item.lastWornDate = currentTime;
-        await this.service.updateClothing(item);
-      }
+      // 🌟 1. 定义什么是“基础衣物”（根据你的业务逻辑，通常是这五类）
+      const baseCategories = ['outerwear', 'top', 'bottom', 'one_piece', 'shoes'];
+
+      // 🌟 2. 阵型剥离：利用 filter 把混合数组拆成两拨
+      const baseClothes = outfitItems.filter(item => baseCategories.includes(item.mainCategory));
+      const accessories = outfitItems.filter(item => !baseCategories.includes(item.mainCategory));
+
+      // 🌟 3. 完美调用新版打卡方法，算自推荐
+      await this.service.confirmDailyOutfit(baseClothes, accessories, this.currentTemp, true);
+
       promptAction.showToast({ message: '打卡成功！各单品数据已更新 ✨' });
     } catch (error) {
+      console.error('FavoritePage', '打卡异常: ' + JSON.stringify(error));
       promptAction.showToast({ message: '记录失败，请重试' });
     }
   }
 
-  handleDeleteOutfit(index: number, viewData: OutfitViewData) {
-    promptAction.showDialog({
+  async handleDeleteOutfit(index: number, viewData: OutfitViewData) {
+    // 1. 直接 await 弹窗结果，代码瞬间变平级！没有嵌套了！
+    const data = await promptAction.showDialog({
       title: '移除收藏',
       message: '确定要将这套搭配从收藏夹移除吗？',
       buttons: [
         { text: '取消', color: '#666666' },
         { text: '移除', color: '#FF4B4B' }
       ]
-    }).then(async (data) => {
-      if (data.index === 1) {
-        this.favoriteOutfits.splice(index, 1);
-        await this.service.deleteFavoriteOutfit(viewData.outfit.id);
-        promptAction.showToast({ message: '已移除收藏' });
-      }
     });
+
+    // 2. 判断用户的选择
+    if (data.index === 1) {
+      // 3. 等待数据库彻底删除
+      const success = await this.service.deleteFavoriteOutfit(viewData.outfit.id);
+
+      // 4. 根据真实结果决定是否刷新界面
+      if (success) {
+        this.favoriteOutfits.splice(index, 1);
+        promptAction.showToast({ message: '已移除收藏' });
+      } else {
+        promptAction.showToast({ message: '移除失败，请检查数据库状态' });
+      }
+    }
   }
 
   build() {
@@ -85,7 +101,7 @@ struct FavoriteOutfitPage {
           Text('还没有收藏过搭配哦').fontSize(15).fontColor('#999')
         }.width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
       } else {
-        // 🌟 核心修改：使用 List 替换 Scroll + Column，天然支持从上往下排列
+        //使用 List ，天然支持从上往下排列
         List({ space: 20 }) {
           ForEach(this.favoriteOutfits, (viewData: OutfitViewData, index: number) => {
             ListItem() {

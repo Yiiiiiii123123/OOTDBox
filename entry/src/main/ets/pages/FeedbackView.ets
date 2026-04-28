@@ -1,6 +1,8 @@
 import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 
+//反馈页面
+
 @Entry
 @Component
 struct FeedbackView {
@@ -8,21 +10,24 @@ struct FeedbackView {
   @State content: string = '';              // 用户输入的反馈内容
   @State contact: string = '';              // 用户的联系方式
 
+  @State isSubmitting: boolean = false; // 提交状态锁
+
   private maxContentLength: number = 200;   // 限制最大字数
 
   // 模拟提交动作
   submitFeedback() {
-    // 表单基础校验
     if (this.content.trim().length === 0) {
       promptAction.showToast({ message: '请简要描述您遇到的问题或建议~' });
       return;
     }
 
-    // 模拟网络请求过程的 Toast
+    if (this.isSubmitting) return; // 防连点：如果在提交中，直接拦截
+
+    this.isSubmitting = true; // 上锁
     promptAction.showToast({ message: '提交中...' });
 
-    // 模拟 800ms 后提交成功并返回
     setTimeout(() => {
+      this.isSubmitting = false; // 解锁
       promptAction.showToast({ message: '感谢您的反馈，我们会尽快优化！' });
       router.back();
     }, 800);
@@ -60,7 +65,7 @@ struct FeedbackView {
 
       // --- 主体表单内容 ---
       Scroll() {
-        // 🌟 优化：把内部大容器的间距调小，让排版更紧凑
+        // 优化：把内部大容器的间距调小，让排版更紧凑
         Column({ space: 20 }) {
 
           // 1. 问题描述输入框
@@ -73,7 +78,7 @@ struct FeedbackView {
 
             Stack({ alignContent: Alignment.BottomEnd }) {
               TextArea({ placeholder: '请详细描述您遇到的问题或想给出的建议...', text: this.content })
-                .height(160) // 稍微加高了一点输入框，视觉上更饱满
+                .height(160) // 稍微加高一点输入框，视觉上更饱满
                 .backgroundColor('#F9F9F9')
                 .fontSize(14)
                 .fontColor('#333')
@@ -92,7 +97,7 @@ struct FeedbackView {
             .width('100%')
           }
           .width('100%')
-          // 🌟 优化：精确控制顶部的留白距离（top: 16），避免悬空感
+          // 优化：精确控制顶部的留白距离（top: 16），避免悬空感
           .padding({ left: 20, right: 20, top: 16 })
 
           // 2. 联系方式输入框 (选填)
@@ -125,8 +130,9 @@ struct FeedbackView {
             .fontSize(16)
             .fontWeight(FontWeight.Bold)
             .borderRadius(24)
-            .margin({ top: 20, bottom: 40 }) // 🌟 优化：收紧了按钮距离上方输入框的间距
+            .margin({ top: 20, bottom: 40 })
             .stateEffect(this.content.trim().length > 0)
+            .enabled(!this.isSubmitting)
             .onClick(() => {
               this.submitFeedback();
             })

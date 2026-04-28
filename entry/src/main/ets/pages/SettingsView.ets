@@ -2,9 +2,12 @@ import router from '@ohos.router';
 import promptAction from '@ohos.promptAction';
 import fs from '@ohos.file.fs';
 import common from '@ohos.app.ability.common';
-import { ClothingRepo } from '../repository/ClothingRepo'; // 🌟 引入数据库操作类
 import dataPreferences from '@ohos.data.preferences';
 import { APP_WALLPAPERS } from '../utils/BackgroundList';
+import { ClothingService } from '../service/ClothingService';
+import { PreferenceRepo } from '../repository/PreferenceRepo';
+
+//设置页面
 
 @Entry
 @Component
@@ -16,8 +19,8 @@ struct SettingsView {
 
   // 获取应用上下文，用于访问缓存目录
   private context = getContext(this) as common.UIAbilityContext;
-  // 实例化数据库仓库
-  private repo: ClothingRepo = new ClothingRepo();
+
+  private service: ClothingService = new ClothingService();
 
 
 
@@ -66,7 +69,7 @@ struct SettingsView {
     }
   }
 
-  // 3. 🌟 清空衣橱数据的弹窗警告
+  // 3. 清空衣橱数据的弹窗警告
   showClearDataDialog() {
     AlertDialog.show({
       title: '⚠️ 危险操作',
@@ -94,7 +97,7 @@ struct SettingsView {
   async executeClearData() {
     try {
       // 1. 调用底层的删除全表方法
-      let success = await this.repo.deleteAll();
+      let success = await this.service.deleteAllClothes();
 
       if (success) {
 
@@ -111,7 +114,7 @@ struct SettingsView {
     }
   }
 
-  // 5. 🌟 新增：清除穿着记录的弹窗警告
+  // 5. 新增：清除穿着记录的弹窗警告
   showResetHistoryDialog() {
     AlertDialog.show({
       title: '提示',
@@ -133,32 +136,34 @@ struct SettingsView {
     });
   }
 
-  // 6. 🌟 新增：执行清除穿着记录
+  // 6. 新增：执行清除穿着记录
   async executeResetHistory() {
     try {
       // 获取所有衣服
-      let clothes = await this.repo.getAll();
-      if (!clothes || clothes.length === 0) {
-        promptAction.showToast({ message: '衣橱空空如也，无需清除' });
-        return;
+      let count = await this.service.resetAllWearHistory();
+      if (count > 0) {
+        promptAction.showToast({ message: `✨ 成功重置 ${count} 件衣物的推荐偏好` });
+      } else {
+        promptAction.showToast({ message: '暂无穿搭记录，无需清除~' });
       }
-
-      let updateCount = 0;
-      for (let item of clothes) {
-        // 只要穿过，就重置数据并更新到数据库
-        if (item.wearCount > 0 || item.lastWornDate > 0) {
-          item.wearCount = 0;
-          item.lastWornDate = 0;
-          await this.repo.update(item);
-          updateCount++;
-        }
-      }
-
-      promptAction.showToast({ message: `✨ 成功重置 ${updateCount} 件衣物的推荐偏好` });
     } catch (e) {
       console.error('SettingsView', '重置穿着记录异常: ' + JSON.stringify(e));
       promptAction.showToast({ message: '重置异常，请重试' });
     }
+  }
+
+  // 抽离出来的壁纸切换统筹方法
+  async handleWallpaperSelect(index: number) {
+    // 1. UI 状态更新：存入全局内存，让当前页面和其他存活页面立刻变色
+    this.selectedWallpaperIndex = index;
+    AppStorage.setOrCreate('wallpaper_index', index);
+
+    // 2. 底层持久化：交给 Service 去写硬盘
+    let context = getContext(this) as common.UIAbilityContext;
+    await PreferenceRepo.saveWallpaper(context, index);
+
+    // 3. 用户反馈
+    promptAction.showToast({ message: '✨ 壁纸已全局切换' });
   }
 
   // ================= UI 渲染 =================
@@ -246,18 +251,8 @@ struct SettingsView {
                   Text('✓').fontColor(Color.White).fontSize(14).fontWeight(FontWeight.Bold)
                 }
               }
-              .onClick(async () => {
-                this.selectedWallpaperIndex = index;
-
-                // 存入全局内存 (让其他已经打开的页面立刻监听到并变色)
-                AppStorage.setOrCreate('wallpaper_index', index);
-
-                // 存入硬盘 (保证下次打开 App 还是这个壁纸)
-                let prefs = await dataPreferences.getPreferences(this.context, 'app_settings');
-                await prefs.put('wallpaper_index', index);
-                await prefs.flush();
-
-                promptAction.showToast({ message: '✨ 壁纸已全局切换' });
+              .onClick(() => {
+                this.handleWallpaperSelect(index);
               })
             }
           })

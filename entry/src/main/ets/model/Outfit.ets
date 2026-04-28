@@ -1,6 +1,7 @@
 export class Outfit {
   id: string;                     // 唯一标识——采用衣物id排序拼接法
   clothingIds: string[];          // 衣物组合以id数组储存
+  accessoryIds: string[];         // 新增：独立存放配饰ID
 
   recommendCount: number;         // 推荐次数
   acceptCount: number;            // 接受次数
@@ -9,10 +10,9 @@ export class Outfit {
   favoriteTime: number;           // 收藏时间戳
 
   // 1：构造函数，让它自动生成指纹 ID
-  constructor(clothingIds: string[], initialTemp: number, id?: string) {
-    // 【关键防御】：无论外面传进来的数组是什么顺序，这里强制拷贝并重新排序！
-    // 确保底层存的数组永远是有序的，斩断一切顺序错乱的可能。
+  constructor(clothingIds: string[], accessoryIds: string[] = [], initialTemp: number, id?: string) {
     this.clothingIds = [...clothingIds].sort();
+    this.accessoryIds = [...accessoryIds].sort(); // 配饰单独保存
 
     // 如果外面传了 id（比如从数据库读取数据时），就用传进来的；
     // 如果没传（生成全新穿搭时），就自动调用下方的规则生成指纹 ID！

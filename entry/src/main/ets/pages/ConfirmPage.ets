@@ -5,6 +5,9 @@ import { ClothingService } from '../service/ClothingService';
 import { COLOR_OPTIONS, WARMTH_OPTIONS, CATEGORY_UI_DATA, ClothingColor } from '../utils/ClothingConfig';
 import { ClothingUtils } from '../utils/ClothingConfig';
 import { ColorOption, WarmthOption } from '../utils/ClothingConfig';
+import { promptAction } from '@kit.ArkUI';
+
+//录入/修改确定页面
 
 @Entry
 @Component
@@ -16,6 +19,7 @@ struct ConfirmPage {
 
   // 状态绑定
   @State selectedSubLabel: string = 'T恤';
+  @State pickerValue: string[] = ['上装', 'T恤'];
   @State selectedColor: ClothingColor = ClothingColor.BLACK;
   @State selectedWarmth: number = 6;
 
@@ -25,6 +29,10 @@ struct ConfirmPage {
     if (this.isEditMode && this.params?.['clothingItem']) {
       const item = this.params['clothingItem'] as Clothing;
       this.selectedSubLabel = ClothingUtils.getLabelBySubCategory(item.subCategory);
+
+      const mainLabel = ClothingUtils.getMainCategoryLabel(item.mainCategory);
+      this.pickerValue = [mainLabel, this.selectedSubLabel];
+
       this.selectedColor = item.color;
       this.selectedWarmth = item.warmthIndex;
     }
@@ -40,7 +48,10 @@ struct ConfirmPage {
       const newId = util.generateRandomUUID();
       const newItem = new Clothing(newId, this.imageUri, subEnum, this.selectedWarmth, this.selectedColor);
       const success = await this.service.addClothing(newItem);
-      if (success) router.back();
+      if (success) {
+        promptAction.showToast({ message: '保存成功！' }); // 加个提示
+        router.back();
+      }
     }
   }
 
@@ -66,7 +77,7 @@ struct ConfirmPage {
           // --- 卡片 1：款式选择 ---
           Column({ space: 8 }) {
             Text('款式分类').fontSize(13).fontWeight(FontWeight.Medium).fontColor('#666').width('100%')
-            TextPicker({ range: CATEGORY_UI_DATA })
+            TextPicker({ range: CATEGORY_UI_DATA, value: this.pickerValue })//级联选择器
               .height(110).width('100%')
               .onChange((value: string | string[]) => {
                 if (Array.isArray(value)) this.selectedSubLabel = value[1];
